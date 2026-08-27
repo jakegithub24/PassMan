@@ -1,0 +1,157 @@
+# ==============================================================================
+# PassMan - Git Ignore Configuration
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# Operating System & Cache Files
+# ------------------------------------------------------------------------------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*~
+*.swp
+*.swo
+*.bak
+*.tmp
+.directory
+
+# ------------------------------------------------------------------------------
+# IDEs and Editors
+# ------------------------------------------------------------------------------
+# JetBrains / Android Studio / IntelliJ
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+.fleet/
+
+# Visual Studio Code
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# Eclipse
+.project
+.classpath
+.settings/
+
+# ------------------------------------------------------------------------------
+# Secrets, Credentials, & Environment Variables
+# ------------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+!.env.template
+*.pem
+*.key
+*.p12
+*.pfx
+*.keystore
+*.jks
+key.properties
+google-services.json
+GoogleService-Info.plist
+*credentials*.json
+*service-account*.json
+
+# ------------------------------------------------------------------------------
+# Python & Backend (uv, FastAPI, pytest, mypy, ruff)
+# ------------------------------------------------------------------------------
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+.eggs/
+*.egg
+
+# Virtual Environments
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Testing & Coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.hypothesis/
+.tox/
+.nox/
+
+# Linters & Static Analysis
+.mypy_cache/
+.ruff_cache/
+.pyre/
+.pytype/
+
+# Jupyter / IPython Notebooks
+.ipynb_checkpoints
+
+# ------------------------------------------------------------------------------
+# Flutter & Dart (apps/)
+# ------------------------------------------------------------------------------
+# Dart / Flutter generated tools and files
+.dart_tool/
+.packages
+.pub/
+.pub-cache/
+**/build/
+ephemeral/
+
+# Flutter plugin markers
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# Symbol maps & debug files
+app.*.symbols
+app.*.map.json
+
+# Android Specific
+**/android/.gradle/
+**/android/local.properties
+**/android/captures/
+**/android/app/build/reports/
+**/android/**/build/
+
+# iOS / macOS Specific
+**/ios/Pods/
+**/ios/.symlinks/
+**/ios/Flutter/Flutter.framework
+**/ios/Flutter/Flutter.podspec
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/app.flx
+**/ios/Flutter/ephemeral/
+**/macos/Pods/
+**/macos/Flutter/ephemeral/
+**/macos/Flutter/GeneratedPluginRegistrant.swift
+
+# Windows / Linux desktop ephemeral
+**/windows/flutter/ephemeral/
+**/linux/flutter/ephemeral/
+
+# ------------------------------------------------------------------------------
+# Logs & Databases
+# ------------------------------------------------------------------------------
+*.log
+logs/
+*.sqlite
+*.sqlite3
+*.db
