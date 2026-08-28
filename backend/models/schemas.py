@@ -1,0 +1,136 @@
+from datetime import datetime
+from enum import Enum
+from typing import Optional
+from uuid import UUID
+
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+
+
+class ClientPlatform(str, Enum):
+    """Supported client platforms for session duration differentiation."""
+    ANDROID = "android"
+    WEB = "web"
+
+
+# ------------------------------------------------------------------------------
+# Auth & User Schemas
+# ------------------------------------------------------------------------------
+
+class UserBase(BaseModel):
+    email: EmailStr = Field(..., description="Unique email address for user identification")
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def normalize_email(cls, v: str) -> str:
+        if isinstance(v, str):
+            return v.strip().lower()
+        return v
+
+
+class UserCreate(UserBase):
+    """Payload for registering a new user."""
+    password: str = Field(
+        ...,
+        min_length=8,
+        description="Master password (never stored in plaintext)",
+    )
+    salt: str = Field(
+        ...,
+        min_length=16,
+        description="Base64-encoded client-side cryptographic salt used for key derivation",
+    )
+
+
+class UserLogin(UserBase):
+    """Payload for user authentication."""
+    password: str = Field(..., min_length=1, description="Master password")
+    client_type: ClientPlatform = Field(
+        default=ClientPlatform.ANDROID,
+        description="Client platform to determine refresh token lifespan (android: 10d, web: 8h)",
+    )
+
+
+class UserOut(UserBase):
+    """Public user response model."""
+    id: UUID = Field(..., description="Unique user UUID")
+    salt: str = Field(..., description="Client derivation salt")
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class TokenPair(BaseModel):
+    """Dual-token response containing short-lived access and revocable refresh tokens."""
+    access_token: str = Field(..., description="Short-lived JWT access token (10 mins)")
+    refresh_token: str = Field(..., description="Long-lived JWT refresh token (10d Android / 8h Web)")
+    token_type: str = Field(default="bearer", description="OAuth2 token type")
+    expires_in: int = Field(..., description="Access token lifetime in seconds (e.g. 600)")
+    user: Optional[UserOut] = Field(default=None, description="Authenticated user profile")
+
+
+class TokenRefreshRequest(BaseModel):
+    """Payload for rotating access token via an active refresh token."""
+    refresh_token: str = Field(..., description="Active bearer refresh token")
+    client_type: Optional[ClientPlatform] = Field(
+        default=None,
+        description="Optional client platform override",
+    )
+
+
+class LogoutRequest(BaseModel):
+    """Payload for revoking a refresh token session."""
+    refresh_token: str = Field(..., description="Bearer refresh token to revoke")
+
+
+class TokenPayload(BaseModel):
+    """Decoded internal JWT claim structure."""
+    sub: str = Field(..., description="Subject identifier (user UUID)")
+    type: str = Field(..., description="Token type ('access' or 'refresh')")
+    exp: int = Field(..., description="Expiration timestamp (Unix epoch)")
+    iat: int = Field(..., description="Issued at timestamp (Unix epoch)")
+    jti: Optional[str] = Field(default=None, description="Unique token identifier (refresh tokens)")
+    client_type: Optional[str] = Field(default="android", description="Originating client platform")
+
+
+class MessageResponse(BaseModel):
+    """Standard message response."""
+    message: str
+    detail: Optional[str] = None
+
+
+# ------------------------------------------------------------------------------
+# Vault Entry Schemas
+# ------------------------------------------------------------------------------
+
+class VaultEntryBase(BaseModel):
+    encrypted_data: str = Field(
+        ...,
+        description="Opaque JSON payload containing { ciphertext, iv, tag }",
+    )
+
+
+class VaultEntryCreate(VaultEntryBase):
+    """Payload to create a new encrypted vault entry."""
+    pass
+
+
+class VaultEntryUpdate(VaultEntryBase):
+    """Payload to update an existing encrypted vault entry."""
+    pass
+
+
+class VaultEntryOut(VaultEntryBase):
+    """Public vault entry representation."""
+    id: UUID
+    user_id: UUID
+    updated_at: datetime
+    deleted_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class VaultSyncStatus(BaseModel):
+    """Authoritative server time for clock synchronization."""
+    server_time: str
+    status: str = "online"
