@@ -37,6 +37,16 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = Field(default="development", description="Runtime environment")
     LOG_LEVEL: str = Field(default="info", description="Logging level")
 
+    @field_validator("DATABASE_URL", mode="before")
+    @classmethod
+    def assemble_database_url(cls, v: str) -> str:
+        if isinstance(v, str):
+            if v.startswith("postgresql://"):
+                return v.replace("postgresql://", "postgresql+asyncpg://", 1)
+            elif v.startswith("postgres://"):
+                return v.replace("postgres://", "postgresql+asyncpg://", 1)
+        return v
+
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
     def assemble_cors_origins(cls, v: Union[str, List[str]]) -> List[str]:
