@@ -2,8 +2,8 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_db
-from models.schemas import TokenPair, TokenRefreshRequest, UserCreate, UserLogin, UserOut
-from services.auth_service import login_user, refresh_access_token, register_user
+from models.schemas import LogoutRequest, MessageResponse, TokenPair, TokenRefreshRequest, UserCreate, UserLogin, UserOut
+from services.auth_service import login_user, logout_user, refresh_access_token, register_user
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
@@ -52,3 +52,18 @@ async def refresh_token_endpoint(
 ) -> TokenPair:
     """Exchange valid refresh token for fresh access token."""
     return await refresh_access_token(db=db, refresh_req=refresh_req)
+
+
+@router.post(
+    "/logout",
+    response_model=MessageResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Revoke active refresh token session",
+    description="Permanently revokes a refresh token session by setting revoked_at timestamp in the database.",
+)
+async def logout(
+    logout_req: LogoutRequest,
+    db: AsyncSession = Depends(get_db),
+) -> MessageResponse:
+    """Revoke refresh token and terminate session."""
+    return await logout_user(db=db, logout_req=logout_req)

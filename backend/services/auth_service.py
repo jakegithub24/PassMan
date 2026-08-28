@@ -11,7 +11,16 @@ from core.config import settings
 from core.jwt import create_access_token, create_token_pair, decode_jwt_token, validate_token_type
 from core.security import hash_password, hash_token, verify_password
 from models.db_models import RefreshToken, User
-from models.schemas import ClientPlatform, TokenPair, TokenRefreshRequest, UserCreate, UserLogin, UserOut
+from models.schemas import (
+    ClientPlatform,
+    LogoutRequest,
+    MessageResponse,
+    TokenPair,
+    TokenRefreshRequest,
+    UserCreate,
+    UserLogin,
+    UserOut,
+)
 
 
 async def get_user_by_email(db: AsyncSession, email: str) -> Optional[User]:
@@ -169,4 +178,24 @@ async def refresh_access_token(db: AsyncSession, refresh_req: TokenRefreshReques
         token_type="bearer",
         expires_in=expires_in_seconds,
         user=UserOut.model_validate(user),
+    )
+
+
+async def logout_user(db: AsyncSession, logout_req: LogoutRequest) -> MessageResponse:
+    """
+    Revoke an active refresh token session by setting revoked_at = NOW():
+    1. Compute SHA-256 hash of provided bearer refresh token.
+    2. Mark revoked_at timestamp in refresh_tokens table.
+    """
+    token_digest = hash_token(logout_req.refresh_token)
+    stmt = select(RefreshToken).where(RefreshToken.token_hash == token_digest)
+    result = await db.execute(stmt)
+    token_record = result.scalar_one_or_none()
+
+    if token_record and token_record.revoked_at is None:
+        token_record.revoked_at = datetime.now(timezone.utc)
+        await db.commit()
+
+    return MessageResponse(
+        message="Session revoked successfully. Logged out.",
     )
