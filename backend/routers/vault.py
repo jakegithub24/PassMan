@@ -1,12 +1,20 @@
+from datetime import datetime
+from typing import Optional
 from uuid import UUID
-from fastapi import APIRouter, Depends, status
+
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_db
 from core.dependencies import get_current_user
 from models.db_models import User
-from models.schemas import MessageResponse, VaultEntryCreate, VaultEntryOut, VaultEntryUpdate
-from services.vault_service import create_vault_entry, delete_vault_entry, update_vault_entry
+from models.schemas import MessageResponse, VaultEntryCreate, VaultEntryOut, VaultEntryUpdate, VaultSyncResponse
+from services.vault_service import (
+    create_vault_entry,
+    delete_vault_entry,
+    sync_vault_entries,
+    update_vault_entry,
+)
 
 router = APIRouter(prefix="/api/vault", tags=["Vault"])
 
@@ -70,3 +78,33 @@ async def delete_entry(
         entry_id=entry_id,
     )
     return MessageResponse(message="Vault entry deleted successfully.")
+
+
+@router.get(
+    "/sync",
+    response_model=VaultSyncResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Delta synchronize vault entries",
+    description="Fetches all vault records (active and deleted tombstones) modified strictly after 'since' parameter using index (user_id, updated_at DESC).",
+)
+async def sync_entries(
+    since: Optional[datetime] = Query(
+        default=None,
+        description="ISO 8601 UTC timestamp baseline. If omitted, returns all entries.",
+    ),
+    limit: int = Query(
+        default=500,
+        ge=1,
+        le=1000,
+        description="Maximum entries to return in single page.",
+    ),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> VaultSyncResponse:
+    """Perform delta synchronization."""
+    return await sync_vault_entries(
+        db=db,
+        user_id=current_user.id,
+        since=since,
+        limit=limit,
+    )

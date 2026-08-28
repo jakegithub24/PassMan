@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.db_models import VaultEntry
-from models.schemas import VaultEntryCreate, VaultEntryUpdate
+from models.schemas import VaultEntryCreate, VaultEntryOut, VaultEntryUpdate, VaultSyncResponse
 
 
 async def create_vault_entry(
@@ -91,3 +91,34 @@ async def delete_vault_entry(
     await db.commit()
     await db.refresh(entry)
     return entry
+
+
+async def sync_vault_entries(
+    db: AsyncSession,
+    user_id: UUID,
+    since: Optional[datetime] = None,
+    limit: int = 500,
+) -> VaultSyncResponse:
+    """
+    Delta synchronization query using composite index (user_id, updated_at DESC):
+    - Returns active and soft-deleted (tombstoned) records modified strictly after 'since'.
+    - Returns authoritative server_time timestamp for client sync baseline.
+    """
+    server_time = datetime.now(timezone.utc)
+    stmt = select(VaultEntry).where(VaultEntry.user_id == user_id)
+    
+    if since is not None:
+        stmt = stmt.where(VaultEntry.updated_at > since)
+        
+    stmt = stmt.order_by(VaultEntry.updated_at.desc()).limit(limit + 1)
+    result = await db.execute(stmt)
+    entries = result.scalars().all()
+
+    has_more = len(entries) > limit
+    trimmed = entries[:limit]
+
+    return VaultSyncResponse(
+        entries=[VaultEntryOut.model_validate(e) for e in trimmed],
+        server_time=server_time,
+        has_more=has_more,
+    )

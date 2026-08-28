@@ -164,3 +164,10 @@ class VaultSyncStatus(BaseModel):
     """Authoritative server time for clock synchronization."""
     server_time: str
     status: str = "online"
+
+
+class VaultSyncResponse(BaseModel):
+    """Delta synchronization payload containing modified and tombstoned records."""
+    entries: list[VaultEntryOut] = Field(default_factory=list)
+    server_time: datetime
+    has_more: bool = False

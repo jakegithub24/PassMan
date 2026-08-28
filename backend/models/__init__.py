@@ -12,6 +12,7 @@ from models.schemas import (
     VaultEntryCreate,
     VaultEntryOut,
     VaultEntryUpdate,
+    VaultSyncResponse,
     VaultSyncStatus,
 )
 
@@ -35,4 +36,5 @@ __all__ = [
     "VaultEntryUpdate",
     "VaultEntryOut",
     "VaultSyncStatus",
+    "VaultSyncResponse",
 ]
