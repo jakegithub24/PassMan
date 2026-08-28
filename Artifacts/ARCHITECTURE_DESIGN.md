@@ -112,7 +112,7 @@ This flow is the same on Android and Web because the local cache schema is ident
 ## 5. Data Flow: Auth + Token Refresh
 
 ```text
-[Login] ──► Argon2id verify ──► issue access_token (15m) + refresh_token (7d)
+[Login] ──► Argon2id verify ──► issue access_token (10m) + refresh_token (10d Android / 8h Web)
                                   (same JWT secret, differentiated by `type` claim)
          │
          ▼

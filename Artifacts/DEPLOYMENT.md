@@ -174,13 +174,21 @@ Configure the following environment secrets in your deployment hosting platform:
 
 ```env
 # Database connection
-DATABASE_URL=postgresql+asyncpg://postgres:[YOUR_PASSWORD]@aws-0-[REGION].pooler.supabase.com:5432/postgres
+DATABASE_URL=postgresql+asyncpg://postgres:[YOUR_PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/postgres
 
 # JWT Security
 JWT_SECRET_KEY=generate_a_64_char_secure_random_hex_string_here
 ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=15
-REFRESH_TOKEN_EXPIRE_DAYS=7
+
+# Android Platform Token & Vault Lock Configuration
+ANDROID_ACCESS_TOKEN_EXPIRES=10
+ANDROID_REFRESH_TOKEN_EXPIRES=10
+ANDROID_VAULT_LOCK=15
+
+# Web Platform Token & Vault Lock Configuration
+WEB_ACCESS_TOKEN_EXPIRES=10
+WEB_REFRESH_TOKEN_EXPIRES=8
+WEB_VAULT_LOCK=15
 
 # CORS Allowed Origins (Comma-separated)
 CORS_ORIGINS=https://passman.netlify.app,https://app.passman.example.com
@@ -362,8 +370,12 @@ flutter build appbundle --release \
 | `DATABASE_URL` | **Yes** | `postgresql+asyncpg://user:pass@pooler:5432/postgres` | Async SQLAlchemy PostgreSQL connection string |
 | `JWT_SECRET_KEY` | **Yes** | `64-character hex string` | HS256 HMAC secret for signing Access & Refresh tokens |
 | `ALGORITHM` | No | `HS256` | JWT signing algorithm |
-| `ACCESS_TOKEN_EXPIRE_MINUTES` | No | `15` | Expiration window for access tokens |
-| `REFRESH_TOKEN_EXPIRE_DAYS` | No | `7` | Expiration window for refresh tokens |
+| `ANDROID_ACCESS_TOKEN_EXPIRES` | No | `10` | Expiration window for Android access tokens (minutes) |
+| `ANDROID_REFRESH_TOKEN_EXPIRES` | No | `10` | Expiration window for Android refresh tokens (days) |
+| `ANDROID_VAULT_LOCK` | No | `15` | Default auto-lock duration on Android (5-30 minutes, user selectable) |
+| `WEB_ACCESS_TOKEN_EXPIRES` | No | `10` | Expiration window for Web access tokens (minutes) |
+| `WEB_REFRESH_TOKEN_EXPIRES` | No | `8` | Expiration window for Web refresh tokens (hours) |
+| `WEB_VAULT_LOCK` | No | `15` | Default auto-lock duration on Web (5-30 minutes, user selectable) |
 | `CORS_ORIGINS` | **Yes** | `https://passman.netlify.app` | Comma-separated list of allowed Web origins |
 | `ENVIRONMENT` | No | `production` (`development`, `staging`, `production`) | Application runtime environment |
 | `API_URL` (Flutter) | **Yes** | `https://api.passman.example.com` | Base HTTP endpoint for mobile & web clients |

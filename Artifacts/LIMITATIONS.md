@@ -50,7 +50,7 @@ This document outlines the architectural trade-offs, scope boundaries, security 
 - **Implication:** The Web client does not have access to a hardware Secure Enclave or hardware-backed Android Keystore. Users on shared/public computers must explicitly log out and clear browser caches to prevent session hijacking.
 
 ### 2.4 Single JWT Secret with Claim-Based Differentiation
-- **Constraint:** Both Access Tokens (15 min) and Refresh Tokens (7 days) are signed using a single server `JWT_SECRET_KEY` and differentiated via the `type` claim (`type="access"` vs `type="refresh"`).
+- **Constraint:** Both Access Tokens (10 min) and Refresh Tokens (Android: 10 days, Web: 8 hours) are signed using a single server `JWT_SECRET_KEY` and differentiated via the `type` claim (`type="access"` vs `type="refresh"`).
 - **Implication:** If the server's `JWT_SECRET_KEY` is compromised, all active access and refresh tokens become invalid. A secret rotation invalidates all existing sessions immediately.
 
 ---

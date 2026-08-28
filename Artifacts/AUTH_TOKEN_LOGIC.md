@@ -12,12 +12,22 @@
 
 PassMan decouples **Account Authentication** (server-managed identity) from **Vault Decryption** (client-managed zero-knowledge encryption). 
 
-### 1.1 Key Lifetimes & Parameters
-- **Access Token:** 15 minutes (`ACCESS_TOKEN_EXPIRE_MINUTES = 15`)
-- **Refresh Token:** 7 days (`REFRESH_TOKEN_EXPIRE_DAYS = 7`)
+### 1.1 Key Lifetimes & Parameters (Platform-Specific)
+
+#### Android Mobile:
+- **`ANDROID_ACCESS_TOKEN_EXPIRES`:** 10 minutes (`ANDROID_ACCESS_TOKEN_EXPIRES = 10`)
+- **`ANDROID_REFRESH_TOKEN_EXPIRES`:** 10 days (`ANDROID_REFRESH_TOKEN_EXPIRES = 10`)
+- **`ANDROID_VAULT_LOCK`:** 5–30 minutes (user selectable, e.g. 5, 10, 15, 30 min; triggers on inactivity or backgrounding)
+
+#### Web Browser:
+- **`WEB_ACCESS_TOKEN_EXPIRES`:** 10 minutes (`WEB_ACCESS_TOKEN_EXPIRES = 10`)
+- **`WEB_REFRESH_TOKEN_EXPIRES`:** 8 hours (`WEB_REFRESH_TOKEN_EXPIRES = 8`)
+- **`WEB_VAULT_LOCK`:** 5–30 minutes (user selectable, e.g. 5, 10, 15, 30 min; triggers on inactivity or tab hide)
+
+#### General Token Architecture:
 - **Token Signing:** Single `JWT_SECRET_KEY` using `HS256`, differentiated by a mandatory `type` claim (`"access"` vs `"refresh"`).
 - **Refresh Token Tracking:** SHA-256 hash stored in PostgreSQL `refresh_tokens` table to enable instant server-side revocation upon logout or security events.
-- **Vault Auto-Lock:** Immediate upon app backgrounding (`AppLifecycleState.paused` / `inactive`), or configurable timer (5–30 min), requiring Biometric / PIN unlock (`local_auth`) or master password re-entry.
+- **Vault Auto-Lock:** User-configurable 5–30 minutes timer or immediate on app backgrounding / tab blur, requiring Biometric / PIN unlock (`local_auth`) or master password re-entry.
 
 ---
 
@@ -33,7 +43,7 @@ PassMan decouples **Account Authentication** (server-managed identity) from **Va
 │     • User inputs Email + Master Password.                             │
 │     • Master password derives session key in memory via PBKDF2/Argon2. │
 │     • POST /api/auth/login -> FastAPI verifies Argon2id hash.          │
-│     • Server returns { access_token (15m), refresh_token (7d) }.       │
+│     • Server returns { access_token (10m), refresh_token (10d) }.      │
 │                                                                        │
 │  2. Token & Key Storage:                                               │
 │     • refresh_token saved to Android Keystore (flutter_secure_storage). │
@@ -49,14 +59,14 @@ PassMan decouples **Account Authentication** (server-managed identity) from **Va
 │         - Returns new access_token (and rotated refresh_token).        │
 │         - Dio updates memory and retries original request once.        │
 │                                                                        │
-│  4. App Backgrounding & Vault Lock:                                    │
-│     • App enters background -> Vault state is locked.                  │
+│  4. App Backgrounding & Vault Lock (5-30 mins / user selectable):      │
+│     • App enters background / idle timer expires -> Vault is locked.   │
 │     • In-memory plaintext is scrubbed.                                 │
 │     • On resume -> Prompt Biometric / PIN via local_auth.              │
 │     • Unlock restores session key without re-entering master password. │
 │                                                                        │
 │  5. Expiration & Forced Logout:                                        │
-│     • If refresh token expires (after 7 days) or is revoked:           │
+│     • If refresh token expires (after 10 days) or is revoked:          │
 │         - Refresh returns 401 Unauthorized.                            │
 │         - Clear flutter_secure_storage and local cache tokens.         │
 │         - Erase session key from memory.                               │
@@ -75,19 +85,19 @@ PassMan decouples **Account Authentication** (server-managed identity) from **Va
 │  1. Login / Register:                                                  │
 │     • User inputs Email + Master Password.                             │
 │     • Master password derives AES session key in volatile memory.      │
-│     • POST /api/auth/login -> FastAPI issues access & refresh tokens.  │
+│     • POST /api/auth/login -> FastAPI issues access (10m) & refresh (8h).│
 │                                                                        │
 │  2. Token & Key Storage:                                               │
 │     • refresh_token saved in flutter_secure_storage (Web Crypto / SS). │
 │     • access_token retained in memory / Dio client.                    │
 │     • Plaintext master password is never stored or cached.             │
 │                                                                        │
-│  3. Inactivity & Tab Closing:                                          │
-│     • When browser tab is closed or user remains idle:                 │
-│         - AES session key in memory is discarded.                      │
+│  3. Inactivity, Vault Lock (5-30 mins) & Tab Closing:                  │
+│     • When idle timer (5-30m) expires or browser tab closed:           │
+│         - AES session key in memory is discarded / vault locked.       │
 │         - Next visit requires Master Password unlock.                  │
-│     • If refresh token is valid (within 7 days):                       │
-│         - Silent refresh obtains fresh access_token on unlock.         │
+│     • If refresh token is valid (within 8 hours):                      │
+│         - Silent refresh obtains fresh access_token (10m) on unlock.   │
 │     • If refresh token expired:                                        │
 │         - Full login required.                                         │
 └────────────────────────────────────────────────────────────────────────┘
@@ -109,10 +119,10 @@ sequenceDiagram
     Note over User,DB: Phase 1: Authentication & Token Issuance
     User->>App: Enter Email + Master Password
     App->>App: Derive AES-256 Session Key (PBKDF2/Argon2)
-    App->>API: POST /api/auth/login { email, password }
+    App->>API: POST /api/auth/login { email, password, client_type }
     API->>DB: Query user by email
     API->>API: Verify password with Argon2id
-    API->>API: Sign access_token (15m, type=access)<br/>Sign refresh_token (7d, type=refresh)
+    API->>API: Sign access_token (10m, type=access)<br/>Sign refresh_token (10d Android / 8h Web, type=refresh)
     API->>DB: INSERT INTO refresh_tokens (user_id, token_hash, expires_at)
     API-->>App: 200 OK { access_token, refresh_token }
     App->>SecStore: Write refresh_token & session key
@@ -125,7 +135,7 @@ sequenceDiagram
     API-->>App: 200 OK [encrypted_entries]
 
     Note over User,DB: Phase 3: Access Token Expiration & Transparent Refresh
-    Note over App,API: (15 minutes elapse; Access Token expires)
+    Note over App,API: (10 minutes elapse; Access Token expires)
     App->>API: GET /api/vault/entries (Expired Access Token)
     API-->>App: 401 Unauthorized (TokenExpired)
     
@@ -134,7 +144,7 @@ sequenceDiagram
     App->>API: POST /api/auth/refresh { refresh_token }
     API->>API: Verify JWT signature & type == "refresh"
     API->>DB: SELECT * FROM refresh_tokens WHERE token_hash = SHA256(token) AND revoked_at IS NULL
-    API->>API: Generate new access_token (15m)
+    API->>API: Generate new access_token (10m)
     API-->>App: 200 OK { access_token, refresh_token }
     App->>App: Update in-memory access_token
     App->>API: Retry original GET /api/vault/entries (New Token)
@@ -188,7 +198,7 @@ Scenario 3: Device Offline During Access Token Expiry
 | Security Concern | Mitigation Strategy |
 | :--- | :--- |
 | **Token Theft from Database Breach** | Refresh tokens are stored strictly as **SHA-256 digests** in the `refresh_tokens` table. A leaked database does not expose raw bearer tokens. |
-| **Access Token Interception** | Short 15-minute lifespan minimizes the vulnerability window; all transport enforced over HTTPS / TLS 1.3. |
+| **Access Token Interception** | Short 10-minute lifespan minimizes the vulnerability window; all transport enforced over HTTPS / TLS 1.3. |
 | **Replay & Token Confusion Attacks** | Single secret with explicit `type: "access"` and `type: "refresh"` claims prevents swapping access tokens for refresh endpoints and vice-versa. |
 | **Brute Force & Credential Stuffing** | `slowapi` rate limiting limits `/api/auth/login` and `/api/auth/refresh` to **5 requests per minute per IP**. |
 | **Stolen / Lost Device** | Calling `POST /api/auth/logout` sets `revoked_at = NOW()`, permanently blacklisting the refresh token on the backend. |

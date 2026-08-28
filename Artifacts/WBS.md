@@ -27,7 +27,7 @@ Companion to `MVP.md` (scope/schema), `ARCHITECTURE_DESIGN.md` (system design), 
 | 2.1 | `[B]` Pydantic models: `UserCreate`, `UserLogin`, `TokenPair` | 1.2 | |
 | 2.2 | `[B]` `argon2-cffi` hashing service (hash + verify) | 2.1 | |
 | 2.3 | `[B]` `POST /api/auth/register` | 2.2 | |
-| 2.4 | `[B]` JWT service: single secret, `type` claim (`access`/`refresh`), 15m/7d expiries | 2.1 | |
+| 2.4 | `[B]` JWT service: single secret, `type` claim (`access`/`refresh`), platform expiries (10m access; 10d Android / 8h Web refresh) | 2.1 | |
 | 2.5 | `[B]` `POST /api/auth/login` — verify Argon2id, issue token pair, insert hashed refresh token row | 2.2, 2.4 | |
 | 2.6 | `[B]` `POST /api/auth/refresh` — validate refresh hash + expiry, rotate access token | 2.4, 2.5 | |
 | 2.7 | `[B]` `POST /api/auth/logout` — set `revoked_at` on refresh token | 2.5 | |
@@ -129,14 +129,14 @@ Companion to `MVP.md` (scope/schema), `ARCHITECTURE_DESIGN.md` (system design), 
 
 **Exit criteria:** Two-device manual test — edit on Device A offline, go online, confirm Device B reflects the change (including deletes) after sync trigger.
 
-### 10.0 Device-Level Auth — Day 10
+### 10.0 Device-Level Auth & Auto-Lock — Day 10
 | ID | Task | Depends On | Owner |
 | :-- | :-- | :-- | :-- |
 | 10.1 | `[F]` `local_auth` biometric/PIN gate on app open | 6.5 | |
-| 10.2 | `[F]` Lock app state on background, require re-auth on resume | 10.1 | |
+| 10.2 | `[F]` User-selectable auto-lock timer (5–30 min) & background lock (`paused`/`inactive`), requiring re-auth on resume | 10.1 | |
 | 10.3 | `[F]` Confirm session key never persists outside `flutter_secure_storage` across lock/unlock cycles | 10.1, 6.5 | |
 
-**Exit criteria:** App is inaccessible after backgrounding without biometric/PIN; session key survives unlock without re-derivation from master password (unless secure storage was cleared).
+**Exit criteria:** App locks on background or after user-configured inactivity (5-30m) without biometric/PIN; session key survives unlock without re-derivation from master password (unless secure storage was cleared).
 
 ---
 

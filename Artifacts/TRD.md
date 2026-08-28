@@ -215,20 +215,20 @@ Table: local_vault_cache
 To avoid multi-secret synchronization complexity, both Access and Refresh tokens are signed with the same `JWT_SECRET_KEY` using `HS256`, distinguished by a mandatory `type` claim:
 
 ```json
-// Access Token (Expires in 15 minutes)
+// Access Token (Expires in 10 minutes - ANDROID_ACCESS_TOKEN_EXPIRES / WEB_ACCESS_TOKEN_EXPIRES)
 {
   "sub": "b2f6b86e-9821-4f18-912b-633b497c3621",
   "type": "access",
-  "exp": 1756312500,
+  "exp": 1756312200,
   "iat": 1756311600
 }
 
-// Refresh Token (Expires in 7 days)
+// Refresh Token (Android: 10 days - ANDROID_REFRESH_TOKEN_EXPIRES / Web: 8 hours - WEB_REFRESH_TOKEN_EXPIRES)
 {
   "sub": "b2f6b86e-9821-4f18-912b-633b497c3621",
   "type": "refresh",
   "jti": "d38f8702-86ee-4228-a4a3-764c483a992d",
-  "exp": 1756916400,
+  "exp": 1757175600,
   "iat": 1756311600
 }
 ```
@@ -244,18 +244,19 @@ sequenceDiagram
     participant DB as PostgreSQL
 
     User->>Flutter: Submit Email + Master Password
-    Flutter->>API: POST /api/auth/login
+    Flutter->>API: POST /api/auth/login { email, password, client_type }
     API->>DB: Fetch user by email
     API->>API: Verify password with Argon2id
     API->>DB: Insert SHA-256(refresh_token) into refresh_tokens
-    API-->>Flutter: 200 OK { access_token (15m), refresh_token (7d) }
+    API-->>Flutter: 200 OK { access_token (10m), refresh_token (10d Android / 8h Web) }
     Flutter->>Flutter: Save refresh_token to flutter_secure_storage
+    Flutter->>Flutter: Set user-selectable vault auto-lock timer (5-30 mins)
 
     Note over Flutter,API: Normal Authenticated API Usage
     Flutter->>API: GET /api/vault/entries (Bearer Access Token)
     API-->>Flutter: 200 OK [entries]
 
-    Note over Flutter,API: Access Token Expires (After 15 min)
+    Note over Flutter,API: Access Token Expires (After 10 min)
     Flutter->>API: GET /api/vault/entries (Expired Token)
     API-->>Flutter: 401 Unauthorized
     

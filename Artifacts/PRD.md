@@ -48,9 +48,9 @@
 | **Platforms** | Android (APK) & Web (Flutter Web) | iOS, Desktop (macOS/Windows/Linux), Browser Extensions |
 | **Cryptography** | Client-side AES-256-GCM (`{ciphertext, iv, tag}`) | Hardware Security Key (FIDO2 / WebAuthn / YubiKey) |
 | **Authentication** | Email + Master Password (Argon2id server-side) | Multi-Factor Authentication (TOTP 2FA, Email OTP) |
-| **Session Management** | Single-secret JWT (15m access / 7d refresh) with auto-refresh | Device session management dashboard, remote session kill |
+| **Session Management** | Single-secret JWT (10m access; Android 10d refresh, Web 8h refresh) with auto-refresh | Device session management dashboard, remote session kill |
 | **Local Storage** | `sqflite` (Android) + `Hive` (Web), unified plaintext cache schema | Encrypted local DB (SQLCipher) if threat model demands |
-| **Device Security** | Biometric / PIN unlock (`local_auth`) + Keystore key storage | Configurable auto-lock timers (5 min, 15 min, immediate) |
+| **Device Security** | Biometric / PIN unlock (`local_auth`) + Keystore; user-selectable auto-lock (5–30 min) | Custom timeout triggers, hardware security keys |
 | **Vault Organization** | Flat credentials list, search by title/username, clipboard copy | Folders, tags, custom fields, credit cards, secure notes |
 | **Synchronization** | Delta sync (`?since=`) on Launch, Resume, and Manual Pull | Real-time push synchronization (Supabase Realtime / WebSocket) |
 | **Conflict Resolution** | Last-Write-Wins (LWW) based on `updated_at` | Interactive 3-way merge UI for simultaneous edits |
@@ -64,9 +64,10 @@
 ### 4.1 User Authentication & Account Management
 - **FR-AUTH-01 (Registration):** The system shall allow users to register with a unique email address and a strong master password.
 - **FR-AUTH-02 (Password Hashing):** The backend shall hash master passwords using **Argon2id** (`argon2-cffi`) with a unique cryptographic salt per user before persisting in PostgreSQL.
-- **FR-AUTH-03 (Token Issuance):** Upon successful authentication, the backend shall issue a dual-token payload:
-  - **Access Token:** JWT with 15-minute expiration, containing `user_id` and `type: "access"`.
-  - **Refresh Token:** Cryptographic token with 7-day expiration, containing `user_id` and `type: "refresh"`.
+- **FR-AUTH-03 (Token Issuance & Lifetimes):** Upon successful authentication, the backend shall issue a dual-token payload:
+  - **Access Token:** JWT with 10-minute expiration (`ANDROID_ACCESS_TOKEN_EXPIRES` / `WEB_ACCESS_TOKEN_EXPIRES`), containing `user_id` and `type: "access"`.
+  - **Refresh Token:** Cryptographic token with 10-day expiration for Android (`ANDROID_REFRESH_TOKEN_EXPIRES`) or 8-hour expiration for Web (`WEB_REFRESH_TOKEN_EXPIRES`), containing `user_id` and `type: "refresh"`.
+  - **Vault Auto-Lock:** User-configurable auto-lock between 5–30 minutes (`ANDROID_VAULT_LOCK` / `WEB_VAULT_LOCK`) across both platforms.
 - **FR-AUTH-04 (Token Persistence & Revocation):** The SHA-256 hash of the active refresh token shall be recorded in the `refresh_tokens` database table. Users can revoke tokens via logout.
 - **FR-AUTH-05 (Transparent Token Refresh):** The client HTTP client (`Dio`) shall intercept `401 Unauthorized` responses, exchange the refresh token for a new access token via `POST /api/auth/refresh`, and seamlessly retry the original request once.
 - **FR-AUTH-06 (Rate Limiting):** Authentication endpoints (`/api/auth/login`, `/api/auth/refresh`) shall enforce a rate limit of **5 requests per minute per IP address**.

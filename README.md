@@ -32,8 +32,8 @@ All system specifications, design decisions, and operational runbooks are thorou
 - **🔒 Zero-Knowledge Cryptography:** Vault items are encrypted client-side using **AES-256-GCM** (with unique 96-bit IVs and 128-bit authentication tags). The server only processes and stores opaque ciphertext blobs (`{ ciphertext, iv, tag }`).
 - **⚡ Offline-First Performance:** Instant UI startup (<200ms) by loading directly from local storage (`sqflite` on Android, `Hive` on Web). Full read, search, add, edit, and delete operations work completely offline.
 - **🔄 Deterministic Delta Sync:** Queries `GET /api/vault/entries?since=<last_synced_at>` to pull only changes. Uses **Last-Write-Wins (LWW)** and **soft-delete tombstones** to ensure deleted items cleanly propagate across all devices.
-- **🛡️ Battle-Tested Authentication:** Master passwords hashed server-side with memory-hard **Argon2id**. Dual-token JWT (15-min Access / 7-day Refresh) with server-side revocation tracking and transparent HTTP 401 auto-refresh via Dio interceptors.
-- **👆 Mobile Device Security:** Hardware-backed session key storage via `flutter_secure_storage` (Android Keystore) and biometric/PIN auto-lock on app backgrounding via `local_auth`.
+- **🛡️ Battle-Tested Authentication:** Master passwords hashed server-side with memory-hard **Argon2id**. Platform-aware dual-token JWT (10-min Access; 10-day Android / 8-hour Web Refresh) with server-side revocation tracking and transparent HTTP 401 auto-refresh via Dio interceptors.
+- **👆 Mobile & Web Device Security:** Hardware-backed session key storage via `flutter_secure_storage` (Android Keystore), user-selectable auto-lock timer (5–30 minutes), and biometric/PIN auto-lock on app backgrounding via `local_auth`.
 - **🚫 Unified Storage (No Double Encryption):** Avoids redundant double-encryption layers (SQLCipher) since data is already ciphertext; concentrates hardware protection strictly on the cryptographic session key.
 
 ---
@@ -97,16 +97,20 @@ All system specifications, design decisions, and operational runbooks are thorou
    ```
 
 3. **Configure Environment Variables (`.env`):**
-   Create a `.env` file in the `backend/` directory:
-   ```env
-   DATABASE_URL=postgresql+asyncpg://postgres:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:5432/postgres
-   JWT_SECRET_KEY=your_super_secret_64_char_random_hex_key
-   ALGORITHM=HS256
-   ACCESS_TOKEN_EXPIRE_MINUTES=15
-   REFRESH_TOKEN_EXPIRE_DAYS=7
-   CORS_ORIGINS=http://localhost:3000,http://localhost:8080,http://127.0.0.1:8000
-   ENVIRONMENT=development
-   ```
+    Create a `.env` file in the `backend/` directory:
+    ```env
+    DATABASE_URL=postgresql+asyncpg://postgres:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/postgres
+    JWT_SECRET_KEY=your_super_secret_64_char_random_hex_key
+    ALGORITHM=HS256
+    ANDROID_ACCESS_TOKEN_EXPIRES=10
+    ANDROID_REFRESH_TOKEN_EXPIRES=10
+    ANDROID_VAULT_LOCK=15
+    WEB_ACCESS_TOKEN_EXPIRES=10
+    WEB_REFRESH_TOKEN_EXPIRES=8
+    WEB_VAULT_LOCK=15
+    CORS_ORIGINS=http://localhost:3000,http://localhost:8080,http://127.0.0.1:8000
+    ENVIRONMENT=development
+    ```
 
 4. **Initialize Database Schema:**
    Run the schema migration SQL against your Supabase instance as detailed in [Section 3 of `DEPLOYMENT.md`](Artifacts/DEPLOYMENT.md#3-database-setup-supabase--postgresql).

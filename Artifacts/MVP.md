@@ -15,7 +15,7 @@
 | **Backend Framework** | FastAPI (Async, ASGI) | REST API, OpenAPI, OAuth2 JWT |
 | **Cloud DB** | Supabase (PostgreSQL 15) | Managed Postgres, direct connection via asyncpg/SQLAlchemy |
 | **Password Hashing** | Argon2id (`argon2-cffi`) | Server-side hash for master passwords only |
-| **Auth Protocol** | JWT (Access 15 min / Refresh 7 days) | Single secret, differentiated by a `type` claim |
+| **Auth Protocol** | JWT (Access 10m / Refresh: Android 10d, Web 8h) | Single secret, differentiated by a `type` claim; auto-lock 5-30m |
 | **Vault Encryption** | AES-256-GCM (client-side, Dart) | Zero-knowledge — server only ever sees ciphertext |
 | **HTTP Client** | Dio + Interceptors | Auto JWT injection, auto refresh-on-401 |
 
@@ -112,9 +112,13 @@ No local encryption library required. Same table on `sqflite` and `Hive`; the me
 
 ---
 
-## 5. Refresh Token Flow
+## 5. Refresh Token Flow & Platform Lifetimes
 
-1. Login issues `access_token` (15 min) + `refresh_token` (7 days) — same JWT secret, differentiated by a `type` claim (`access` / `refresh`). No need to manage two secrets.
+1. Login issues:
+   - **Access Token:** 10 minutes (`ANDROID_ACCESS_TOKEN_EXPIRES` / `WEB_ACCESS_TOKEN_EXPIRES`).
+   - **Refresh Token:** Android: 10 days (`ANDROID_REFRESH_TOKEN_EXPIRES`); Web: 8 hours (`WEB_REFRESH_TOKEN_EXPIRES`).
+   - **Vault Auto-Lock:** 5–30 minutes (user selectable on both Android and Web).
+   - Single JWT secret, differentiated by a `type` claim (`access` / `refresh`).
 2. Stored in `flutter_secure_storage` on both Android and Web.
 3. Dio interceptor attaches `Authorization: Bearer <access_token>` to every request.
 4. On `401`, interceptor calls `/api/auth/refresh`, retries the original request once.
@@ -201,11 +205,19 @@ Sync runs on: **app launch**, **app resume from background**, and **manual pull-
 
 ### FastAPI `.env`
 ```env
-DATABASE_URL=postgresql://user:pass@aws-0-region.pooler.supabase.com:5432/postgres
+DATABASE_URL=postgresql+asyncpg://user:pass@aws-0-region.pooler.supabase.com:6543/postgres
 JWT_SECRET_KEY=your_super_secret_key
 ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=15
-REFRESH_TOKEN_EXPIRE_DAYS=7
+
+# Android Configuration
+ANDROID_ACCESS_TOKEN_EXPIRES=10
+ANDROID_REFRESH_TOKEN_EXPIRES=10
+ANDROID_VAULT_LOCK=15
+
+# Web Configuration
+WEB_ACCESS_TOKEN_EXPIRES=10
+WEB_REFRESH_TOKEN_EXPIRES=8
+WEB_VAULT_LOCK=15
 ```
 
 ### Flutter
