@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID
 
@@ -8,7 +8,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.database import get_db
 from core.dependencies import get_current_user
 from models.db_models import User
-from models.schemas import MessageResponse, VaultEntryCreate, VaultEntryOut, VaultEntryUpdate, VaultSyncResponse
+from models.schemas import (
+    MessageResponse,
+    VaultEntryCreate,
+    VaultEntryOut,
+    VaultEntryUpdate,
+    VaultSyncResponse,
+    VaultSyncStatus,
+)
 from services.vault_service import (
     create_vault_entry,
     delete_vault_entry,
@@ -17,6 +24,21 @@ from services.vault_service import (
 )
 
 router = APIRouter(prefix="/api/vault", tags=["Vault"])
+
+
+@router.get(
+    "/sync/status",
+    response_model=VaultSyncStatus,
+    status_code=status.HTTP_200_OK,
+    summary="Get authoritative sync status and server time",
+    description="Returns current authoritative UTC server timestamp and backend operational status for clock alignment.",
+)
+async def sync_status() -> VaultSyncStatus:
+    """Return authoritative server time and status."""
+    return VaultSyncStatus(
+        server_time=datetime.now(timezone.utc).isoformat(),
+        status="online",
+    )
 
 
 @router.post(

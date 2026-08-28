@@ -51,10 +51,4 @@ async def root():
     }
 
 
-@app.get("/api/vault/sync/status", tags=["Sync"])
-async def sync_status():
-    """Server synchronization status endpoint returning authoritative server time."""
-    return {
-        "server_time": datetime.now(timezone.utc).isoformat(),
-        "status": "online",
-    }
+

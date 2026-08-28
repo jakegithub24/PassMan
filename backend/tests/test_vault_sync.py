@@ -10,6 +10,18 @@ from models.db_models import User, VaultEntry
 
 
 @pytest.mark.asyncio
+async def test_sync_status_endpoint(client: AsyncClient):
+    res = await client.get("/api/vault/sync/status")
+    assert res.status_code == 200, res.text
+    data = res.json()
+    assert "server_time" in data
+    assert data["status"] == "online"
+    # Ensure server_time is valid ISO 8601
+    parsed_time = datetime.fromisoformat(data["server_time"])
+    assert parsed_time is not None
+
+
+@pytest.mark.asyncio
 async def test_vault_sync_full_and_delta(client: AsyncClient, db_session: AsyncSession):
     unique_suffix = uuid.uuid4().hex[:8]
     test_email = f"sync_{unique_suffix}@example.com"
