@@ -10,7 +10,7 @@ from sqlalchemy import (
     Text,
     func,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import INET, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from core.database import Base
@@ -202,7 +202,7 @@ class AuditLog(Base):
         nullable=False,
     )
     ip_address: Mapped[Optional[str]] = mapped_column(
-        String(45),  # Fits IPv4 and IPv6 string representation
+        INET,
         nullable=True,
     )
     user_agent: Mapped[Optional[str]] = mapped_column(

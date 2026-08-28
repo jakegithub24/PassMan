@@ -8,12 +8,16 @@ from sqlalchemy.orm import DeclarativeBase
 
 from core.config import settings
 
-# Create Async Engine
+# Create Async Engine with PgBouncer compatibility
 engine = create_async_engine(
     settings.DATABASE_URL,
     echo=(settings.ENVIRONMENT == "development"),
     future=True,
     pool_pre_ping=True,
+    connect_args={
+        "statement_cache_size": 0,
+        "prepared_statement_cache_size": 0,
+    },
 )
 
 # Create Async Session Factory

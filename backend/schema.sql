@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS vault_entries (
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     encrypted_data TEXT NOT NULL,       -- JSON payload: { ciphertext, iv, tag }
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    deleted_at TIMESTAMPTZ NULL         -- Tombstone for delta sync; NOT hard deleted
+    deleted_at TIMESTAMPTZ NULL         -- Tombstone for delta sync (NOT hard deleted)
 );
 
 -- Composite Index optimized for delta sync queries: WHERE user_id = :id AND updated_at > :since ORDER BY updated_at DESC
