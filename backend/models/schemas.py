@@ -103,11 +103,41 @@ class MessageResponse(BaseModel):
 # Vault Entry Schemas
 # ------------------------------------------------------------------------------
 
+import json
+
 class VaultEntryBase(BaseModel):
     encrypted_data: str = Field(
         ...,
-        description="Opaque JSON payload containing { ciphertext, iv, tag }",
+        description="Opaque JSON string containing { ciphertext, iv, tag }",
     )
+
+    model_config = ConfigDict(extra="forbid")
+
+    @field_validator("encrypted_data")
+    @classmethod
+    def validate_zero_knowledge_envelope(cls, v: str) -> str:
+        if not isinstance(v, str):
+            raise ValueError("encrypted_data must be a string")
+        try:
+            parsed = json.loads(v)
+        except Exception:
+            raise ValueError("encrypted_data must be a valid JSON string containing {ciphertext, iv, tag}")
+        
+        if not isinstance(parsed, dict):
+            raise ValueError("encrypted_data JSON payload must be an object")
+        
+        required_keys = {"ciphertext", "iv", "tag"}
+        if not required_keys.issubset(parsed.keys()):
+            missing = required_keys - set(parsed.keys())
+            raise ValueError(f"encrypted_data payload missing required keys: {missing}")
+        
+        # Check for forbidden plaintext fields in root keys
+        forbidden_keys = {"password", "plaintext", "cleartext", "secret", "title", "username", "notes", "url"}
+        found_forbidden = forbidden_keys.intersection(set(k.lower() for k in parsed.keys()))
+        if found_forbidden:
+            raise ValueError(f"Zero-knowledge violation: Plaintext-shaped fields detected in payload: {found_forbidden}")
+        
+        return v
 
 
 class VaultEntryCreate(VaultEntryBase):

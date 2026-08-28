@@ -33,9 +33,11 @@ app.add_middleware(
 )
 
 from routers.auth import router as auth_router
+from routers.vault import router as vault_router
 
 # Include API Routers
 app.include_router(auth_router)
+app.include_router(vault_router)
 
 
 @app.get("/", tags=["Health"])
