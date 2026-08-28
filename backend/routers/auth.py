@@ -2,8 +2,8 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_db
-from models.schemas import TokenPair, UserCreate, UserLogin, UserOut
-from services.auth_service import login_user, register_user
+from models.schemas import TokenPair, TokenRefreshRequest, UserCreate, UserLogin, UserOut
+from services.auth_service import login_user, refresh_access_token, register_user
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
@@ -37,3 +37,18 @@ async def login(
 ) -> TokenPair:
     """Log in user and issue access/refresh token pair."""
     return await login_user(db=db, user_login=user_login)
+
+
+@router.post(
+    "/refresh",
+    response_model=TokenPair,
+    status_code=status.HTTP_200_OK,
+    summary="Rotate access token using refresh token",
+    description="Validates active refresh token against database hash and expiration, and returns a fresh 10-minute access token.",
+)
+async def refresh_token_endpoint(
+    refresh_req: TokenRefreshRequest,
+    db: AsyncSession = Depends(get_db),
+) -> TokenPair:
+    """Exchange valid refresh token for fresh access token."""
+    return await refresh_access_token(db=db, refresh_req=refresh_req)
