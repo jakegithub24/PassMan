@@ -1,0 +1,120 @@
+import 'dart:convert';
+import 'dart:math';
+import 'dart:typed_data';
+import 'package:cryptography/cryptography.dart';
+
+/// Cryptographic service providing client-side zero-knowledge encryption,
+/// key derivation, and salt generation.
+class CryptoService {
+  final AesGcm _aesGcm = AesGcm.with256bits();
+  final Pbkdf2 _pbkdf2;
+
+  CryptoService({int pbkdf2Iterations = 100000})
+      : _pbkdf2 = Pbkdf2(
+          macAlgorithm: Hmac.sha256(),
+          iterations: pbkdf2Iterations,
+          bits: 256,
+        );
+
+  /// Generates a cryptographically secure random salt encoded in Base64.
+  String generateSalt([int length = 16]) {
+    final Random random = Random.secure();
+    final Uint8List saltBytes = Uint8List(length);
+    for (int i = 0; i < length; i++) {
+      saltBytes[i] = random.nextInt(256);
+    }
+    return base64Encode(saltBytes);
+  }
+
+  /// Derives a 256-bit symmetric encryption key from a master password and salt using PBKDF2-HMAC-SHA256.
+  Future<List<int>> deriveMasterKey({
+    required String masterPassword,
+    required String saltBase64,
+  }) async {
+    final List<int> saltBytes = base64Decode(saltBase64);
+    final SecretKey secretKey = await _pbkdf2.deriveKey(
+      secretKey: SecretKey(utf8.encode(masterPassword)),
+      nonce: saltBytes,
+    );
+    return await secretKey.extractBytes();
+  }
+
+  /// Encrypts plaintext string using AES-256-GCM.
+  /// Returns a Map containing Base64-encoded {ciphertext, iv, tag}.
+  Future<Map<String, String>> encryptAesGcm({
+    required String plaintext,
+    required List<int> keyBytes,
+  }) async {
+    final SecretKey secretKey = SecretKey(keyBytes);
+    final SecretBox secretBox = await _aesGcm.encrypt(
+      utf8.encode(plaintext),
+      secretKey: secretKey,
+    );
+
+    return {
+      'ciphertext': base64Encode(secretBox.cipherText),
+      'iv': base64Encode(secretBox.nonce),
+      'tag': base64Encode(secretBox.mac.bytes),
+    };
+  }
+
+  /// Decrypts AES-256-GCM ciphertext using Base64 {ciphertext, iv, tag} and key bytes.
+  Future<String> decryptAesGcm({
+    required String ciphertextBase64,
+    required String ivBase64,
+    required String tagBase64,
+    required List<int> keyBytes,
+  }) async {
+    final SecretKey secretKey = SecretKey(keyBytes);
+    final SecretBox secretBox = SecretBox(
+      base64Decode(ciphertextBase64),
+      nonce: base64Decode(ivBase64),
+      mac: Mac(base64Decode(tagBase64)),
+    );
+
+    final List<int> clearTextBytes = await _aesGcm.decrypt(
+      secretBox,
+      secretKey: secretKey,
+    );
+
+    return utf8.decode(clearTextBytes);
+  }
+
+  /// Serializes AES-256-GCM encryption result to a JSON string envelope for backend persistence.
+  Future<String> encryptVaultPayload({
+    required String plaintext,
+    required List<int> keyBytes,
+  }) async {
+    final Map<String, String> envelope = await encryptAesGcm(
+      plaintext: plaintext,
+      keyBytes: keyBytes,
+    );
+    return jsonEncode(envelope);
+  }
+
+  /// Deserializes a JSON string envelope {ciphertext, iv, tag} and decrypts to plaintext string.
+  Future<String> decryptVaultPayload({
+    required String jsonPayload,
+    required List<int> keyBytes,
+  }) async {
+    final dynamic decoded = jsonDecode(jsonPayload);
+    if (decoded is! Map) {
+      throw const FormatException('Invalid JSON payload format for vault entry');
+    }
+
+    final String? ciphertext = decoded['ciphertext'] as String?;
+    final String? iv = decoded['iv'] as String?;
+    final String? tag = decoded['tag'] as String?;
+
+    if (ciphertext == null || iv == null || tag == null) {
+      throw const FormatException('Missing required ciphertext, iv, or tag in envelope');
+    }
+
+    return await decryptAesGcm(
+      ciphertextBase64: ciphertext,
+      ivBase64: iv,
+      tagBase64: tag,
+      keyBytes: keyBytes,
+    );
+  }
+}
