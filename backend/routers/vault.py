@@ -5,8 +5,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.database import get_db
 from core.dependencies import get_current_user
 from models.db_models import User
-from models.schemas import VaultEntryCreate, VaultEntryOut, VaultEntryUpdate
-from services.vault_service import create_vault_entry, update_vault_entry
+from models.schemas import MessageResponse, VaultEntryCreate, VaultEntryOut, VaultEntryUpdate
+from services.vault_service import create_vault_entry, delete_vault_entry, update_vault_entry
 
 router = APIRouter(prefix="/api/vault", tags=["Vault"])
 
@@ -49,3 +49,24 @@ async def update_entry(
         entry_in=entry_in,
     )
     return VaultEntryOut.model_validate(entry)
+
+
+@router.delete(
+    "/entries/{entry_id}",
+    response_model=MessageResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Soft-delete a vault entry",
+    description="Marks vault entry with deleted_at timestamp and advances updated_at for sync propagation.",
+)
+async def delete_entry(
+    entry_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> MessageResponse:
+    """Soft delete an encrypted vault entry."""
+    await delete_vault_entry(
+        db=db,
+        user_id=current_user.id,
+        entry_id=entry_id,
+    )
+    return MessageResponse(message="Vault entry deleted successfully.")

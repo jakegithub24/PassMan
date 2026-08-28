@@ -59,3 +59,35 @@ async def update_vault_entry(
     await db.commit()
     await db.refresh(entry)
     return entry
+
+
+async def delete_vault_entry(
+    db: AsyncSession,
+    user_id: UUID,
+    entry_id: UUID,
+) -> VaultEntry:
+    """
+    Soft-delete a vault entry: sets deleted_at = NOW() and advances updated_at timestamp.
+    Ensures offline delta-sync propagates deletions to other clients.
+    """
+    stmt = select(VaultEntry).where(
+        VaultEntry.id == entry_id,
+        VaultEntry.user_id == user_id,
+        VaultEntry.deleted_at.is_(None),
+    )
+    result = await db.execute(stmt)
+    entry = result.scalar_one_or_none()
+
+    if not entry:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Vault entry not found.",
+        )
+
+    now_utc = datetime.now(timezone.utc)
+    entry.deleted_at = now_utc
+    entry.updated_at = now_utc
+
+    await db.commit()
+    await db.refresh(entry)
+    return entry
