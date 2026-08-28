@@ -1,9 +1,9 @@
 # ==============================================================================
-# PassMan - Git Ignore Configuration
+# PassMan - Comprehensive Root .gitignore Configuration
 # ==============================================================================
 
 # ------------------------------------------------------------------------------
-# Operating System & Cache Files
+# Operating System & Filesystem Artifacts
 # ------------------------------------------------------------------------------
 .DS_Store
 .DS_Store?
@@ -22,7 +22,7 @@ $RECYCLE.BIN/
 .directory
 
 # ------------------------------------------------------------------------------
-# IDEs and Editors
+# IDEs & Editor Workspaces
 # ------------------------------------------------------------------------------
 # JetBrains / Android Studio / IntelliJ
 .idea/
@@ -40,13 +40,22 @@ out/
 !.vscode/extensions.json
 *.code-workspace
 
-# Eclipse
+# Eclipse / NetBeans / Atom / Sublime
 .project
 .classpath
 .settings/
+.atom/
+.history/
+*.sublime-project
+*.sublime-workspace
+
+# AI Agents & Editor Caches
+.gemini/
+.claude/
+.cursor/
 
 # ------------------------------------------------------------------------------
-# Secrets, Credentials, & Environment Variables
+# Secrets, Private Keys, & Environment Variables
 # ------------------------------------------------------------------------------
 .env
 .env.*
@@ -65,7 +74,7 @@ GoogleService-Info.plist
 *service-account*.json
 
 # ------------------------------------------------------------------------------
-# Python & Backend (uv, FastAPI, pytest, mypy, ruff)
+# Python & Backend (uv, FastAPI, pytest, mypy, ruff, SQLAlchemy)
 # ------------------------------------------------------------------------------
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -78,6 +87,7 @@ build/
 *.egg-info/
 .eggs/
 *.egg
+*.whl
 
 # Virtual Environments
 .venv/
@@ -86,12 +96,17 @@ env/
 ENV/
 env.bak/
 venv.bak/
+.uv/
+.cache/
 
 # Testing & Coverage
 .pytest_cache/
 .coverage
 .coverage.*
 htmlcov/
+coverage/
+*.lcov
+lcov.info
 .hypothesis/
 .tox/
 .nox/
@@ -113,6 +128,7 @@ htmlcov/
 .packages
 .pub/
 .pub-cache/
+**/doc/api/
 **/build/
 ephemeral/
 
@@ -128,8 +144,14 @@ app.*.map.json
 **/android/.gradle/
 **/android/local.properties
 **/android/captures/
+**/android/app/build/
+**/android/app/debug/
+**/android/app/profile/
+**/android/app/release/
 **/android/app/build/reports/
 **/android/**/build/
+**/.cxx/
+GeneratedPluginRegistrant.java
 
 # iOS / macOS Specific
 **/ios/Pods/
@@ -139,16 +161,20 @@ app.*.map.json
 **/ios/Flutter/Generated.xcconfig
 **/ios/Flutter/app.flx
 **/ios/Flutter/ephemeral/
+**/ios/Flutter/.last_build_id
 **/macos/Pods/
 **/macos/Flutter/ephemeral/
 **/macos/Flutter/GeneratedPluginRegistrant.swift
+
+# Web Specific
+**/build/web/
 
 # Windows / Linux desktop ephemeral
 **/windows/flutter/ephemeral/
 **/linux/flutter/ephemeral/
 
 # ------------------------------------------------------------------------------
-# Logs & Databases
+# Logs & Local Databases
 # ------------------------------------------------------------------------------
 *.log
 logs/
