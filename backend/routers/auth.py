@@ -2,6 +2,8 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_db
+from core.dependencies import get_current_user
+from models.db_models import User
 from models.schemas import LogoutRequest, MessageResponse, TokenPair, TokenRefreshRequest, UserCreate, UserLogin, UserOut
 from services.auth_service import login_user, logout_user, refresh_access_token, register_user
 
@@ -67,3 +69,17 @@ async def logout(
 ) -> MessageResponse:
     """Revoke refresh token and terminate session."""
     return await logout_user(db=db, logout_req=logout_req)
+
+
+@router.get(
+    "/me",
+    response_model=UserOut,
+    status_code=status.HTTP_200_OK,
+    summary="Get current authenticated user profile",
+    description="Decodes Bearer access token and returns user profile for the authenticated session.",
+)
+async def get_me(
+    current_user: User = Depends(get_current_user),
+) -> UserOut:
+    """Return authenticated user profile."""
+    return UserOut.model_validate(current_user)
