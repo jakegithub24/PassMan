@@ -8,6 +8,7 @@ from core.jwt import (
     decode_jwt_token,
     validate_token_type,
 )
+from core.limiter import limiter
 from core.security import (
     hash_password,
     hash_token,
@@ -23,6 +24,7 @@ __all__ = [
     "Base",
     "get_db",
     "get_current_user",
+    "limiter",
     "password_hasher",
     "hash_password",
     "verify_password",

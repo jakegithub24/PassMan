@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_db
 from core.dependencies import get_current_user
+from core.limiter import limiter
 from models.db_models import User
 from models.schemas import LogoutRequest, MessageResponse, TokenPair, TokenRefreshRequest, UserCreate, UserLogin, UserOut
 from services.auth_service import login_user, logout_user, refresh_access_token, register_user
@@ -15,9 +16,11 @@ router = APIRouter(prefix="/api/auth", tags=["Authentication"])
     response_model=UserOut,
     status_code=status.HTTP_201_CREATED,
     summary="Register a new user account",
-    description="Registers a new user with master password hash (Argon2id) and client-side derivation salt.",
+    description="Registers a new user with master password hash (Argon2id) and client-side derivation salt. Rate limited to 3 requests/minute.",
 )
+@limiter.limit("3/minute")
 async def register(
+    request: Request,
     user_in: UserCreate,
     db: AsyncSession = Depends(get_db),
 ) -> UserOut:
@@ -31,9 +34,11 @@ async def register(
     response_model=TokenPair,
     status_code=status.HTTP_200_OK,
     summary="Authenticate and obtain dual token pair",
-    description="Authenticates master password against Argon2id hash, issues access token (10m) and refresh token (10d Android / 8h Web), and records hashed token in database.",
+    description="Authenticates master password against Argon2id hash, issues access token (10m) and refresh token (10d Android / 8h Web), and records hashed token in database. Rate limited to 5 requests/minute.",
 )
+@limiter.limit("5/minute")
 async def login(
+    request: Request,
     user_login: UserLogin,
     db: AsyncSession = Depends(get_db),
 ) -> TokenPair:

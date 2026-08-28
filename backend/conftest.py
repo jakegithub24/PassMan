@@ -6,6 +6,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from main import app
 from core.database import AsyncSessionLocal, engine
+from core.limiter import limiter
+
+
+@pytest.fixture(autouse=True)
+def reset_rate_limiter():
+    """Reset rate limiter counts between tests to avoid cross-test throttling."""
+    limiter.reset()
 
 
 @pytest.fixture(scope="session")
