@@ -2,11 +2,14 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/auth_providers.dart';
+import '../providers/auth_state.dart';
 import '../theme/app_theme.dart';
 
 enum AuthMode { login, signup }
 
-class LoginSignupScreen extends StatefulWidget {
+class LoginSignupScreen extends ConsumerStatefulWidget {
   final Function(String email, String password, {String? salt})? onLogin;
   final Function(String email, String password, {String? salt})? onSignup;
 
@@ -17,10 +20,10 @@ class LoginSignupScreen extends StatefulWidget {
   });
 
   @override
-  State<LoginSignupScreen> createState() => _LoginSignupScreenState();
+  ConsumerState<LoginSignupScreen> createState() => _LoginSignupScreenState();
 }
 
-class _LoginSignupScreenState extends State<LoginSignupScreen> with SingleTickerProviderStateMixin {
+class _LoginSignupScreenState extends ConsumerState<LoginSignupScreen> with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
 
   AuthMode _authMode = AuthMode.login;
@@ -97,15 +100,42 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> with SingleTicker
       final password = _passwordController.text;
 
       if (_authMode == AuthMode.login) {
-        widget.onLogin?.call(email, password);
+        if (widget.onLogin != null) {
+          widget.onLogin!.call(email, password);
+        } else {
+          ref.read(authStateProvider.notifier).login(
+                email: email,
+                password: password,
+              );
+        }
       } else {
-        widget.onSignup?.call(email, password);
+        if (widget.onSignup != null) {
+          widget.onSignup!.call(email, password);
+        } else {
+          ref.read(authStateProvider.notifier).signup(
+                email: email,
+                password: password,
+              );
+        }
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    // Listen for authentication errors and notify user cleanly
+    ref.listen<AuthState>(authStateProvider, (previous, next) {
+      if (next.hasError && next.errorMessage != previous?.errorMessage && next.errorMessage != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(next.errorMessage!),
+            backgroundColor: AppColors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    });
+
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
@@ -814,7 +844,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> with SingleTicker
                 : const SizedBox(height: 8),
           ),
 
-          // 7. Primary Submit Button (.auth-submit) with Material Ripple
+          // 7. Primary Submit Button (.auth-submit) with Material Ripple & Riverpod Loading State
           _buildSubmitButton(isLogin, isCompact: isCompact),
           SizedBox(height: isCompact ? 12 : 16),
 
@@ -990,6 +1020,9 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> with SingleTicker
   }
 
   Widget _buildSubmitButton(bool isLogin, {required bool isCompact}) {
+    final authState = ref.watch(authStateProvider);
+    final isLoading = authState.isAuthenticating;
+
     return Container(
       width: double.infinity,
       height: isCompact ? 40 : 44,
@@ -1007,20 +1040,29 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> with SingleTicker
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: _handleSubmit,
+          onTap: isLoading ? null : _handleSubmit,
           borderRadius: BorderRadius.circular(11),
           splashColor: Colors.white24,
           highlightColor: Colors.white10,
           child: Center(
-            child: Text(
-              isLogin ? 'Log in' : 'Create account',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: isCompact ? 13 : 13.5,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.1,
-              ),
-            ),
+            child: isLoading
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                : Text(
+                    isLogin ? 'Log in' : 'Create account',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: isCompact ? 13 : 13.5,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.1,
+                    ),
+                  ),
           ),
         ),
       ),

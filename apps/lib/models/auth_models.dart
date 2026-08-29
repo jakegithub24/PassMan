@@ -32,6 +32,20 @@ class UserModel {
       'updated_at': updatedAt.toUtc().toIso8601String(),
     };
   }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is UserModel &&
+        other.id == id &&
+        other.email == email &&
+        other.salt == salt &&
+        other.createdAt == createdAt &&
+        other.updatedAt == updatedAt;
+  }
+
+  @override
+  int get hashCode => Object.hash(id, email, salt, createdAt, updatedAt);
 }
 
 class TokenPairModel {
@@ -60,4 +74,18 @@ class TokenPairModel {
           : null,
     );
   }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is TokenPairModel &&
+        other.accessToken == accessToken &&
+        other.refreshToken == refreshToken &&
+        other.tokenType == tokenType &&
+        other.expiresIn == expiresIn &&
+        other.user == user;
+  }
+
+  @override
+  int get hashCode => Object.hash(accessToken, refreshToken, tokenType, expiresIn, user);
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:apps/screens/login_signup_screen.dart';
 
@@ -8,12 +9,14 @@ void main() {
     Function(String, String, {String? salt})? onSignup,
     Size size = const Size(1200, 800),
   }) {
-    return MaterialApp(
-      home: MediaQuery(
-        data: MediaQueryData(size: size),
-        child: LoginSignupScreen(
-          onLogin: onLogin,
-          onSignup: onSignup,
+    return ProviderScope(
+      child: MaterialApp(
+        home: MediaQuery(
+          data: MediaQueryData(size: size),
+          child: LoginSignupScreen(
+            onLogin: onLogin,
+            onSignup: onSignup,
+          ),
         ),
       ),
     );
