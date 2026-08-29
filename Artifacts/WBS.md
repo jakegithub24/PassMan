@@ -68,7 +68,7 @@ Companion to `MVP.md` (scope/schema), `ARCHITECTURE_DESIGN.md` (system design), 
 ### 5.0 Flutter Auth + Networking — Day 5
 | ID | Task | Depends On | Owner |
 | :-- | :-- | :-- | :-- |
-| 5.1 | `[F]` Login/Signup screens (form validation only, no crypto yet) | 1.5 | |
+| 5.1 | `[F]` Login/Signup screens (form validation only, no crypto yet) | 1.5 | Done (Antigravity) |
 | 5.2 | `[F]` Riverpod `AuthState` provider | 5.1 | |
 | 5.3 | `[F]` Dio client base config + JWT-attach interceptor | 1.5 | |
 | 5.4 | `[F]` 401 interceptor: call `/auth/refresh`, retry original request once, else force logout | 5.3, 2.6 | |

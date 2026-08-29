@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
 import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart' as sql;
 
 import '../models/encrypted_vault_entry.dart';
@@ -15,9 +14,10 @@ class LocalVaultStorageService {
   static const String tableName = 'local_vault_entries';
   static const String webBoxName = 'passman_vault_entries';
 
-  LocalVaultStorageService({sql.Database? sqliteDb, Box<Map>? hiveBox})
-      : _sqliteDb = sqliteDb,
-        _hiveBox = hiveBox;
+  LocalVaultStorageService({sql.Database? sqliteDb, Box<Map>? hiveBox}) {
+    _sqliteDb = sqliteDb;
+    _hiveBox = hiveBox;
+  }
 
   /// Initializes storage backend depending on runtime platform.
   Future<void> init() async {
