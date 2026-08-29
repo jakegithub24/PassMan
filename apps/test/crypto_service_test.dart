@@ -202,52 +202,122 @@ void main() {
         throwsArgumentError,
       );
     });
+  });
 
-    test('AES-256-GCM encryption and decryption round-trip', () async {
-      const secretMessage = '{"title":"GitHub","username":"user@example.com","password":"SecretPassword123"}';
+  group('CryptoService AES-256-GCM Decryption Tests (Task 6.3)', () {
+    test('decryptAesGcm and decryptMapAesGcm successfully restore original plaintext', () async {
+      const originalText = 'Highly confidential password & private key 9876';
       final key = await cryptoService.deriveMasterKey(
-        masterPassword: 'MasterPassword123!',
+        masterPassword: 'MySecretMasterKey!',
         saltBase64: cryptoService.generateSalt(),
       );
 
-      final encrypted = await cryptoService.encryptAesGcm(
-        plaintext: secretMessage,
+      final encryptedMap = await cryptoService.encryptAesGcm(
+        plaintext: originalText,
         keyBytes: key,
       );
 
-      final decrypted = await cryptoService.decryptAesGcm(
+      final decryptedString = await cryptoService.decryptAesGcm(
+        ciphertextBase64: encryptedMap['ciphertext']!,
+        ivBase64: encryptedMap['iv']!,
+        tagBase64: encryptedMap['tag']!,
+        keyBytes: key,
+      );
+      expect(decryptedString, equals(originalText));
+
+      final decryptedFromMap = await cryptoService.decryptMapAesGcm(
+        payload: encryptedMap,
+        keyBytes: key,
+      );
+      expect(decryptedFromMap, equals(originalText));
+    });
+
+    test('decryptBytesAesGcm restores raw byte payload', () async {
+      final rawData = [0, 255, 128, 64, 32, 16, 8, 4, 2, 1];
+      final key = await cryptoService.deriveMasterKey(
+        masterPassword: 'KeyForRawBytes!',
+        saltBase64: cryptoService.generateSalt(),
+      );
+
+      final encrypted = await cryptoService.encryptBytesAesGcm(
+        plaintextBytes: rawData,
+        keyBytes: key,
+      );
+
+      final decryptedBytes = await cryptoService.decryptBytesAesGcm(
         ciphertextBase64: encrypted['ciphertext']!,
         ivBase64: encrypted['iv']!,
         tagBase64: encrypted['tag']!,
         keyBytes: key,
       );
 
-      expect(decrypted, equals(secretMessage));
+      expect(decryptedBytes, equals(rawData));
     });
 
-    test('encryptVaultPayload and decryptVaultPayload JSON envelope round-trip', () async {
-      const secretJson = '{"note":"Bank PIN 4321"}';
+    test('decryptAesGcm throws ArgumentError if key is not 32 bytes', () async {
+      expect(
+        () async => await cryptoService.decryptAesGcm(
+          ciphertextBase64: 'AAAA',
+          ivBase64: 'AAAA',
+          tagBase64: 'AAAA',
+          keyBytes: [1, 2, 3],
+        ),
+        throwsArgumentError,
+      );
+    });
+
+    test('decryptAesGcm throws on tampered ciphertext (tamper detection)', () async {
       final key = await cryptoService.deriveMasterKey(
         masterPassword: 'MasterPassword123!',
         saltBase64: cryptoService.generateSalt(),
       );
 
-      final vaultJson = await cryptoService.encryptVaultPayload(
-        plaintext: secretJson,
+      final encrypted = await cryptoService.encryptAesGcm(
+        plaintext: 'Valid Plaintext',
         keyBytes: key,
       );
 
-      final decodedMap = jsonDecode(vaultJson) as Map<String, dynamic>;
-      expect(decodedMap.containsKey('ciphertext'), isTrue);
-      expect(decodedMap.containsKey('iv'), isTrue);
-      expect(decodedMap.containsKey('tag'), isTrue);
+      // Tamper with ciphertext bytes
+      final cipherBytes = base64Decode(encrypted['ciphertext']!);
+      cipherBytes[0] ^= 0xFF;
+      final tamperedCiphertext = base64Encode(cipherBytes);
 
-      final restored = await cryptoService.decryptVaultPayload(
-        jsonPayload: vaultJson,
+      expect(
+        () async => await cryptoService.decryptAesGcm(
+          ciphertextBase64: tamperedCiphertext,
+          ivBase64: encrypted['iv']!,
+          tagBase64: encrypted['tag']!,
+          keyBytes: key,
+        ),
+        throwsA(anything),
+      );
+    });
+
+    test('decryptAesGcm throws on tampered authentication tag (authentication failure)', () async {
+      final key = await cryptoService.deriveMasterKey(
+        masterPassword: 'MasterPassword123!',
+        saltBase64: cryptoService.generateSalt(),
+      );
+
+      final encrypted = await cryptoService.encryptAesGcm(
+        plaintext: 'Valid Plaintext',
         keyBytes: key,
       );
 
-      expect(restored, equals(secretJson));
+      // Tamper with tag bytes
+      final tagBytes = base64Decode(encrypted['tag']!);
+      tagBytes[0] ^= 0xFF;
+      final tamperedTag = base64Encode(tagBytes);
+
+      expect(
+        () async => await cryptoService.decryptAesGcm(
+          ciphertextBase64: encrypted['ciphertext']!,
+          ivBase64: encrypted['iv']!,
+          tagBase64: tamperedTag,
+          keyBytes: key,
+        ),
+        throwsA(anything),
+      );
     });
 
     test('Decryption with wrong key fails', () async {
@@ -275,6 +345,31 @@ void main() {
         ),
         throwsA(anything),
       );
+    });
+
+    test('encryptVaultPayload and decryptVaultPayload JSON envelope round-trip', () async {
+      const secretJson = '{"note":"Bank PIN 4321"}';
+      final key = await cryptoService.deriveMasterKey(
+        masterPassword: 'MasterPassword123!',
+        saltBase64: cryptoService.generateSalt(),
+      );
+
+      final vaultJson = await cryptoService.encryptVaultPayload(
+        plaintext: secretJson,
+        keyBytes: key,
+      );
+
+      final decodedMap = jsonDecode(vaultJson) as Map<String, dynamic>;
+      expect(decodedMap.containsKey('ciphertext'), isTrue);
+      expect(decodedMap.containsKey('iv'), isTrue);
+      expect(decodedMap.containsKey('tag'), isTrue);
+
+      final restored = await cryptoService.decryptVaultPayload(
+        jsonPayload: vaultJson,
+        keyBytes: key,
+      );
+
+      expect(restored, equals(secretJson));
     });
   });
 }

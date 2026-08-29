@@ -163,6 +163,43 @@ class CryptoService {
     required String tagBase64,
     required List<int> keyBytes,
   }) async {
+    final clearTextBytes = await decryptBytesAesGcm(
+      ciphertextBase64: ciphertextBase64,
+      ivBase64: ivBase64,
+      tagBase64: tagBase64,
+      keyBytes: keyBytes,
+    );
+    return utf8.decode(clearTextBytes);
+  }
+
+  /// Decrypts AES-256-GCM ciphertext map {ciphertext, iv, tag} directly.
+  Future<String> decryptMapAesGcm({
+    required Map<String, String> payload,
+    required List<int> keyBytes,
+  }) async {
+    final ciphertext = payload['ciphertext'];
+    final iv = payload['iv'];
+    final tag = payload['tag'];
+
+    if (ciphertext == null || iv == null || tag == null) {
+      throw const FormatException('Missing required ciphertext, iv, or tag in payload');
+    }
+
+    return await decryptAesGcm(
+      ciphertextBase64: ciphertext,
+      ivBase64: iv,
+      tagBase64: tag,
+      keyBytes: keyBytes,
+    );
+  }
+
+  /// Decrypts AES-256-GCM payload directly to raw plaintext bytes.
+  Future<List<int>> decryptBytesAesGcm({
+    required String ciphertextBase64,
+    required String ivBase64,
+    required String tagBase64,
+    required List<int> keyBytes,
+  }) async {
     if (keyBytes.length != keyLengthBytes) {
       throw ArgumentError('AES-256 requires exactly 32 key bytes (got ${keyBytes.length})');
     }
@@ -174,12 +211,10 @@ class CryptoService {
       mac: Mac(base64Decode(tagBase64)),
     );
 
-    final List<int> clearTextBytes = await _aesGcm.decrypt(
+    return await _aesGcm.decrypt(
       secretBox,
       secretKey: secretKey,
     );
-
-    return utf8.decode(clearTextBytes);
   }
 
   /// Serializes AES-256-GCM encryption result to a JSON string envelope for backend persistence.
