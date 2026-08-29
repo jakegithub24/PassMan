@@ -10,7 +10,7 @@ Companion to `MVP.md` (scope/schema), `ARCHITECTURE_DESIGN.md` (system design), 
 ## Phase 1 — Foundations (Days 1–2)
 
 ### 1.0 Project Setup — Day 1
-| ID | Task | Depends On | Owner |
+| ID | Task | Depends On | Status |
 | :-- | :-- | :-- | :-- |
 | 1.1 | `[I]` Create Supabase project, note connection string | — | |
 | 1.2 | `[B]` Init FastAPI project (Poetry/venv), base folder structure (`routers/`, `services/`, `models/`) | 1.1 | |
@@ -22,7 +22,7 @@ Companion to `MVP.md` (scope/schema), `ARCHITECTURE_DESIGN.md` (system design), 
 **Exit criteria:** FastAPI boots locally and connects to Supabase; Flutter project builds on Android + Web targets with no errors.
 
 ### 2.0 Backend Auth — Day 2
-| ID | Task | Depends On | Owner |
+| ID | Task | Depends On | Status |
 | :-- | :-- | :-- | :-- |
 | 2.1 | `[B]` Pydantic models: `UserCreate`, `UserLogin`, `TokenPair` | 1.2 | |
 | 2.2 | `[B]` `argon2-cffi` hashing service (hash + verify) | 2.1 | |
@@ -40,7 +40,7 @@ Companion to `MVP.md` (scope/schema), `ARCHITECTURE_DESIGN.md` (system design), 
 ## Phase 2 — Core API (Days 3–4)
 
 ### 3.0 Vault CRUD — Day 3
-| ID | Task | Depends On | Owner |
+| ID | Task | Depends On | Status |
 | :-- | :-- | :-- | :-- |
 | 3.1 | `[B]` `POST /api/vault/entries` — accept `{ciphertext, iv, tag}` only, reject any plaintext-shaped field | 2.8 | |
 | 3.2 | `[B]` `PUT /api/vault/entries/{id}` — ownership check, bump `updated_at` | 3.1 | |
@@ -52,7 +52,7 @@ Companion to `MVP.md` (scope/schema), `ARCHITECTURE_DESIGN.md` (system design), 
 **Exit criteria:** Full CRUD + delta sync verified via Postman with two seeded users, confirming no cross-user data leakage.
 
 ### 4.0 Middleware & Security — Day 4
-| ID | Task | Depends On | Owner |
+| ID | Task | Depends On | Status |
 | :-- | :-- | :-- | :-- |
 | 4.1 | `[B]` CORS middleware — allowlist Web deploy origin + localhost only | 1.2 | |
 | 4.2 | `[B]` `slowapi` rate limiter — 5/min on `/login` and `/refresh` | 2.5, 2.6 | |
@@ -66,18 +66,18 @@ Companion to `MVP.md` (scope/schema), `ARCHITECTURE_DESIGN.md` (system design), 
 ## Phase 3 — Client Foundations (Days 5–6)
 
 ### 5.0 Flutter Auth + Networking — Day 5
-| ID | Task | Depends On | Owner |
+| ID | Task | Depends On | Status |
 | :-- | :-- | :-- | :-- |
-| 5.1 | `[F]` Login/Signup screens (form validation only, no crypto yet) | 1.5 | Done (Antigravity) |
-| 5.2 | `[F]` Riverpod `AuthState` provider | 5.1 | Done (Antigravity) |
-| 5.3 | `[F]` Dio client base config + JWT-attach interceptor | 1.5 | Done (Antigravity) |
-| 5.4 | `[F]` 401 interceptor: call `/auth/refresh`, retry original request once, else force logout | 5.3, 2.6 | |
+| 5.1 | `[F]` Login/Signup screens (form validation only, no crypto yet) | 1.5 | Done |
+| 5.2 | `[F]` Riverpod `AuthState` provider | 5.1 | Done |
+| 5.3 | `[F]` Dio client base config + JWT-attach interceptor | 1.5 | Done |
+| 5.4 | `[F]` 401 interceptor: call `/auth/refresh`, retry original request once, else force logout | 5.3, 2.6 | Done |
 | 5.5 | `[F]` Token storage via `flutter_secure_storage` (Android + Web) | 5.3 | |
 
 **Exit criteria:** Live login against backend from Day 2; simulated 401 correctly triggers refresh-and-retry.
 
 ### 6.0 Encryption Layer — Day 6
-| ID | Task | Depends On | Owner |
+| ID | Task | Depends On | Status |
 | :-- | :-- | :-- | :-- |
 | 6.1 | `[F]` Key derivation from master password (PBKDF2/Argon2 in Dart) → session key | 5.2 | |
 | 6.2 | `[F]` AES-256-GCM encrypt function → `{ciphertext, iv, tag}` | 6.1 | |
@@ -92,7 +92,7 @@ Companion to `MVP.md` (scope/schema), `ARCHITECTURE_DESIGN.md` (system design), 
 ## Phase 4 — Vault UI & Local Cache (Days 7–8)
 
 ### 7.0 Flutter Vault UI — Day 7
-| ID | Task | Depends On | Owner |
+| ID | Task | Depends On | Status |
 | :-- | :-- | :-- | :-- |
 | 7.1 | `[F]` `VaultState` provider (list, add, edit, delete) | 5.2, 6.2 | |
 | 7.2 | `[F]` Vault list screen | 7.1 | |
@@ -104,7 +104,7 @@ Companion to `MVP.md` (scope/schema), `ARCHITECTURE_DESIGN.md` (system design), 
 **Exit criteria:** Full CRUD usable end-to-end online, decrypting correctly on read.
 
 ### 8.0 Local Cache — Day 8
-| ID | Task | Depends On | Owner |
+| ID | Task | Depends On | Status |
 | :-- | :-- | :-- | :-- |
 | 8.1 | `[F]` Define shared `local_vault_cache` table/box shape (per `MVP.md §3`) | 7.1 | |
 | 8.2 | `[F]` `sqflite` implementation (Android) | 8.1 | |
@@ -119,7 +119,7 @@ Companion to `MVP.md` (scope/schema), `ARCHITECTURE_DESIGN.md` (system design), 
 ## Phase 5 — Sync & Device Security (Days 9–10)
 
 ### 9.0 Sync Engine — Day 9
-| ID | Task | Depends On | Owner |
+| ID | Task | Depends On | Status |
 | :-- | :-- | :-- | :-- |
 | 9.1 | `[F]` Trigger hooks: app launch, resume-from-background, manual pull-to-refresh | 8.5 | |
 | 9.2 | `[F]` Delta fetch (`GET /entries?since=`) + `last_synced_at` persistence | 9.1, 3.4 | |
@@ -130,7 +130,7 @@ Companion to `MVP.md` (scope/schema), `ARCHITECTURE_DESIGN.md` (system design), 
 **Exit criteria:** Two-device manual test — edit on Device A offline, go online, confirm Device B reflects the change (including deletes) after sync trigger.
 
 ### 10.0 Device-Level Auth & Auto-Lock — Day 10
-| ID | Task | Depends On | Owner |
+| ID | Task | Depends On | Status |
 | :-- | :-- | :-- | :-- |
 | 10.1 | `[F]` `local_auth` biometric/PIN gate on app open | 6.5 | |
 | 10.2 | `[F]` User-selectable auto-lock timer (5–30 min) & background lock (`paused`/`inactive`), requiring re-auth on resume | 10.1 | |
@@ -143,7 +143,7 @@ Companion to `MVP.md` (scope/schema), `ARCHITECTURE_DESIGN.md` (system design), 
 ## Phase 6 — Testing, Fixes, Release (Days 11–13)
 
 ### 11.0 Testing — Day 11
-| ID | Task | Depends On | Owner |
+| ID | Task | Depends On | Status |
 | :-- | :-- | :-- | :-- |
 | 11.1 | `[T]` `pytest-asyncio` suite: auth flow, CRUD ownership, rate limit, soft-delete behavior | 2.x, 3.x, 4.x | |
 | 11.2 | `[T]` Flutter widget tests: auth screens, vault list, add/edit form | 5.x, 7.x | |
@@ -155,7 +155,7 @@ Companion to `MVP.md` (scope/schema), `ARCHITECTURE_DESIGN.md` (system design), 
 **Exit criteria:** All automated tests pass; all 4 manual scenarios confirmed on both Android and Web.
 
 ### 12.0 Bug Fixing & Polish — Day 12
-| ID | Task | Depends On | Owner |
+| ID | Task | Depends On | Status |
 | :-- | :-- | :-- | :-- |
 | 12.1 | Triage and fix issues surfaced in Day 11 testing | 11.x | |
 | 12.2 | `[F]` UI polish pass (loading states, error messaging, empty states) | 12.1 | |
@@ -165,7 +165,7 @@ Companion to `MVP.md` (scope/schema), `ARCHITECTURE_DESIGN.md` (system design), 
 **Exit criteria:** No known P0/P1 bugs open; UI has no dead-end states.
 
 ### 13.0 Release — Day 13
-| ID | Task | Depends On | Owner |
+| ID | Task | Depends On | Status |
 | :-- | :-- | :-- | :-- |
 | 13.1 | `[I]` Deploy FastAPI to Render/Fly.io, set production `.env` | 12.x | |
 | 13.2 | `[I]` Point production build at Supabase prod instance | 13.1 | |
