@@ -38,6 +38,8 @@ class VaultItem {
     };
   }
 
+  Map<String, dynamic> toJson() => toDecryptedJson();
+
   /// Deserializes plaintext JSON decrypted from the AES-256-GCM ciphertext payload.
   factory VaultItem.fromDecryptedJson(Map<String, dynamic> json, {String? entryId}) {
     return VaultItem(
@@ -56,6 +58,9 @@ class VaultItem {
           : null,
     );
   }
+
+  factory VaultItem.fromJson(Map<String, dynamic> json) =>
+      VaultItem.fromDecryptedJson(json);
 
   VaultItem copyWith({
     String? id,

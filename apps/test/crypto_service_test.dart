@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:apps/models/vault_item.dart';
 import 'package:apps/services/crypto_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -346,30 +347,126 @@ void main() {
         throwsA(anything),
       );
     });
+  });
 
-    test('encryptVaultPayload and decryptVaultPayload JSON envelope round-trip', () async {
-      const secretJson = '{"note":"Bank PIN 4321"}';
+  group('Task 6.4: Full Round-Trip Unit Tests (Plaintext -> Encrypt -> Decrypt -> Match)', () {
+    test('round-trip test: basic plaintext ASCII matches', () async {
+      const plaintext = 'StandardPlaintextCredential123!';
       final key = await cryptoService.deriveMasterKey(
-        masterPassword: 'MasterPassword123!',
+        masterPassword: 'MasterPassword!',
         saltBase64: cryptoService.generateSalt(),
       );
 
-      final vaultJson = await cryptoService.encryptVaultPayload(
-        plaintext: secretJson,
+      final encrypted = await cryptoService.encryptAesGcm(plaintext: plaintext, keyBytes: key);
+      final decrypted = await cryptoService.decryptAesGcm(
+        ciphertextBase64: encrypted['ciphertext']!,
+        ivBase64: encrypted['iv']!,
+        tagBase64: encrypted['tag']!,
         keyBytes: key,
       );
 
-      final decodedMap = jsonDecode(vaultJson) as Map<String, dynamic>;
-      expect(decodedMap.containsKey('ciphertext'), isTrue);
-      expect(decodedMap.containsKey('iv'), isTrue);
-      expect(decodedMap.containsKey('tag'), isTrue);
+      expect(decrypted, equals(plaintext));
+    });
 
-      final restored = await cryptoService.decryptVaultPayload(
-        jsonPayload: vaultJson,
+    test('round-trip test: multi-language UTF-8 unicode & emojis match', () async {
+      const plaintext = 'PassMan 🔐 密码 密碼 パスワード كلمة المرور пароль 🚀✨';
+      final key = await cryptoService.deriveMasterKey(
+        masterPassword: 'UniversalPassword@2026',
+        saltBase64: cryptoService.generateSalt(),
+      );
+
+      final encrypted = await cryptoService.encryptAesGcm(plaintext: plaintext, keyBytes: key);
+      final decrypted = await cryptoService.decryptAesGcm(
+        ciphertextBase64: encrypted['ciphertext']!,
+        ivBase64: encrypted['iv']!,
+        tagBase64: encrypted['tag']!,
         keyBytes: key,
       );
 
-      expect(restored, equals(secretJson));
+      expect(decrypted, equals(plaintext));
+    });
+
+    test('round-trip test: empty string matches', () async {
+      const plaintext = '';
+      final key = await cryptoService.deriveMasterKey(
+        masterPassword: 'PasswordForEmpty',
+        saltBase64: cryptoService.generateSalt(),
+      );
+
+      final encrypted = await cryptoService.encryptAesGcm(plaintext: plaintext, keyBytes: key);
+      final decrypted = await cryptoService.decryptAesGcm(
+        ciphertextBase64: encrypted['ciphertext']!,
+        ivBase64: encrypted['iv']!,
+        tagBase64: encrypted['tag']!,
+        keyBytes: key,
+      );
+
+      expect(decrypted, equals(plaintext));
+    });
+
+    test('round-trip test: large multiline JSON payload matches', () async {
+      final largeBuffer = StringBuffer();
+      for (int i = 0; i < 500; i++) {
+        largeBuffer.writeln('Entry $i: username=user$i@domain.com password=P@ssw0rd$i! notes=SecureNotes$i');
+      }
+      final plaintext = largeBuffer.toString();
+
+      final key = await cryptoService.deriveMasterKey(
+        masterPassword: 'LargePayloadMasterPassword',
+        saltBase64: cryptoService.generateSalt(),
+      );
+
+      final encrypted = await cryptoService.encryptAesGcm(plaintext: plaintext, keyBytes: key);
+      final decrypted = await cryptoService.decryptAesGcm(
+        ciphertextBase64: encrypted['ciphertext']!,
+        ivBase64: encrypted['iv']!,
+        tagBase64: encrypted['tag']!,
+        keyBytes: key,
+      );
+
+      expect(decrypted, equals(plaintext));
+    });
+
+    test('round-trip test: VaultItem model JSON envelope encrypt/decrypt matches', () async {
+      final item = VaultItem(
+        id: 'uuid-entry-1234',
+        title: 'Production AWS Root Account',
+        username: 'admin@company.internal',
+        password: 'SuperSecretComplexPassword#2026',
+        url: 'https://aws.amazon.com/console',
+        notes: 'Backup 2FA seed phrase: test seed words ...',
+        updatedAt: DateTime.utc(2026, 8, 29, 12, 0, 0),
+      );
+
+      final itemJson = jsonEncode(item.toJson());
+
+      final key = await cryptoService.deriveMasterKey(
+        masterPassword: 'VaultMasterPassword!99',
+        saltBase64: cryptoService.generateSalt(),
+      );
+
+      // 1. Encrypt to JSON envelope
+      final vaultEnvelopeJson = await cryptoService.encryptVaultPayload(
+        plaintext: itemJson,
+        keyBytes: key,
+      );
+
+      // 2. Decrypt envelope back to item JSON
+      final restoredItemJson = await cryptoService.decryptVaultPayload(
+        jsonPayload: vaultEnvelopeJson,
+        keyBytes: key,
+      );
+
+      expect(restoredItemJson, equals(itemJson));
+
+      // 3. Deserialize back to VaultItem and verify equality
+      final restoredItem = VaultItem.fromJson(jsonDecode(restoredItemJson) as Map<String, dynamic>);
+      expect(restoredItem.id, equals(item.id));
+      expect(restoredItem.title, equals(item.title));
+      expect(restoredItem.username, equals(item.username));
+      expect(restoredItem.password, equals(item.password));
+      expect(restoredItem.url, equals(item.url));
+      expect(restoredItem.notes, equals(item.notes));
     });
   });
 }
