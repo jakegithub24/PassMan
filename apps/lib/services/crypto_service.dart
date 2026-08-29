@@ -3,12 +3,14 @@ import 'dart:math';
 import 'dart:typed_data';
 import 'package:cryptography/cryptography.dart';
 
-/// Cryptographic service providing client-side zero-knowledge encryption,
+/// Cryptographic service providing client-side zero-knowledge encryption (AES-256-GCM),
 /// PBKDF2-HMAC-SHA256 key derivation, and cryptographically secure salt generation.
 class CryptoService {
   static const int defaultPbkdf2Iterations = 100000;
   static const int keyLengthBits = 256;
   static const int keyLengthBytes = 32;
+  static const int gcmNonceLengthBytes = 12; // 96-bit standard IV per NIST SP 800-38D
+  static const int gcmTagLengthBytes = 16; // 128-bit authentication tag
 
   final int iterations;
   final AesGcm _aesGcm = AesGcm.with256bits();
@@ -24,11 +26,7 @@ class CryptoService {
 
   /// Generates a cryptographically secure random salt encoded in Base64.
   String generateSalt([int length = 16]) {
-    final Random random = Random.secure();
-    final Uint8List saltBytes = Uint8List(length);
-    for (int i = 0; i < length; i++) {
-      saltBytes[i] = random.nextInt(256);
-    }
+    final Uint8List saltBytes = generateSaltBytes(length);
     return base64Encode(saltBytes);
   }
 
@@ -40,6 +38,16 @@ class CryptoService {
       saltBytes[i] = random.nextInt(256);
     }
     return saltBytes;
+  }
+
+  /// Generates a random 12-byte (96-bit) Initialization Vector (Nonce) for AES-GCM.
+  Uint8List generateNonce([int length = gcmNonceLengthBytes]) {
+    final Random random = Random.secure();
+    final Uint8List nonce = Uint8List(length);
+    for (int i = 0; i < length; i++) {
+      nonce[i] = random.nextInt(256);
+    }
+    return nonce;
   }
 
   /// Derives a deterministic 256-bit symmetric encryption key from a master password
@@ -100,15 +108,45 @@ class CryptoService {
   }
 
   /// Encrypts plaintext string using AES-256-GCM.
-  /// Returns a Map containing Base64-encoded {ciphertext, iv, tag}.
+  /// Validates 256-bit key length and returns a Map containing Base64-encoded {ciphertext, iv, tag}.
   Future<Map<String, String>> encryptAesGcm({
     required String plaintext,
     required List<int> keyBytes,
+    List<int>? customNonce,
   }) async {
+    if (keyBytes.length != keyLengthBytes) {
+      throw ArgumentError('AES-256 requires exactly 32 key bytes (got ${keyBytes.length})');
+    }
+
     final SecretKey secretKey = SecretKey(keyBytes);
     final SecretBox secretBox = await _aesGcm.encrypt(
       utf8.encode(plaintext),
       secretKey: secretKey,
+      nonce: customNonce,
+    );
+
+    return {
+      'ciphertext': base64Encode(secretBox.cipherText),
+      'iv': base64Encode(secretBox.nonce),
+      'tag': base64Encode(secretBox.mac.bytes),
+    };
+  }
+
+  /// Encrypts raw plaintext byte buffer using AES-256-GCM.
+  Future<Map<String, String>> encryptBytesAesGcm({
+    required List<int> plaintextBytes,
+    required List<int> keyBytes,
+    List<int>? customNonce,
+  }) async {
+    if (keyBytes.length != keyLengthBytes) {
+      throw ArgumentError('AES-256 requires exactly 32 key bytes (got ${keyBytes.length})');
+    }
+
+    final SecretKey secretKey = SecretKey(keyBytes);
+    final SecretBox secretBox = await _aesGcm.encrypt(
+      plaintextBytes,
+      secretKey: secretKey,
+      nonce: customNonce,
     );
 
     return {
@@ -125,6 +163,10 @@ class CryptoService {
     required String tagBase64,
     required List<int> keyBytes,
   }) async {
+    if (keyBytes.length != keyLengthBytes) {
+      throw ArgumentError('AES-256 requires exactly 32 key bytes (got ${keyBytes.length})');
+    }
+
     final SecretKey secretKey = SecretKey(keyBytes);
     final SecretBox secretBox = SecretBox(
       base64Decode(ciphertextBase64),

@@ -80,7 +80,7 @@ Companion to `MVP.md` (scope/schema), `ARCHITECTURE_DESIGN.md` (system design), 
 | ID | Task | Depends On | Status |
 | :-- | :-- | :-- | :-- |
 | 6.1 | `[F]` Key derivation from master password (PBKDF2/Argon2 in Dart) → session key | 5.2 | Done |
-| 6.2 | `[F]` AES-256-GCM encrypt function → `{ciphertext, iv, tag}` | 6.1 | |
+| 6.2 | `[F]` AES-256-GCM encrypt function → `{ciphertext, iv, tag}` | 6.1 | Done |
 | 6.3 | `[F]` AES-256-GCM decrypt function | 6.1 | |
 | 6.4 | `[F]` Round-trip unit test: plaintext → encrypt → decrypt → match | 6.2, 6.3 | |
 | 6.5 | `[F]` Session key stored only in `flutter_secure_storage`, never written to local cache DB | 6.1, 5.5 | |

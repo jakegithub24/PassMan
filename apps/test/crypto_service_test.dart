@@ -6,7 +6,7 @@ void main() {
   late CryptoService cryptoService;
 
   setUp(() {
-    cryptoService = CryptoService(pbkdf2Iterations: 1000); // 1000 iterations for rapid test suite execution
+    cryptoService = CryptoService(pbkdf2Iterations: 1000); // 1000 iterations for fast test suite
   });
 
   group('CryptoService Tests (Task 6.1 Key Derivation & Security)', () {
@@ -48,16 +48,13 @@ void main() {
 
       expect(key1.length, equals(32));
       expect(key1, equals(key2));
-      expect(key1, equals(key2));
 
-      // Distinct password produces distinct key
       final keyDifferentPassword = await cryptoService.deriveMasterKey(
         masterPassword: 'OtherPassword',
         saltBase64: salt,
       );
       expect(key1, isNot(equals(keyDifferentPassword)));
 
-      // Distinct salt produces distinct key
       final keyDifferentSalt = await cryptoService.deriveMasterKey(
         masterPassword: password,
         saltBase64: cryptoService.generateSalt(16),
@@ -119,6 +116,92 @@ void main() {
 
       expect(buffer, equals([0, 0, 0, 0, 0]));
     });
+  });
+
+  group('CryptoService AES-256-GCM Encryption Tests (Task 6.2)', () {
+    test('encryptAesGcm generates valid {ciphertext, iv, tag} envelope with 12-byte IV and 16-byte tag', () async {
+      const plaintext = 'SuperSecretVaultItemPayload';
+      final key = await cryptoService.deriveMasterKey(
+        masterPassword: 'MasterPassword123!',
+        saltBase64: cryptoService.generateSalt(),
+      );
+
+      final encrypted = await cryptoService.encryptAesGcm(
+        plaintext: plaintext,
+        keyBytes: key,
+      );
+
+      expect(encrypted.containsKey('ciphertext'), isTrue);
+      expect(encrypted.containsKey('iv'), isTrue);
+      expect(encrypted.containsKey('tag'), isTrue);
+
+      final ivBytes = base64Decode(encrypted['iv']!);
+      final tagBytes = base64Decode(encrypted['tag']!);
+      final cipherBytes = base64Decode(encrypted['ciphertext']!);
+
+      expect(ivBytes.length, equals(12)); // 96-bit GCM IV
+      expect(tagBytes.length, equals(16)); // 128-bit authentication tag
+      expect(cipherBytes.isNotEmpty, isTrue);
+    });
+
+    test('encryptAesGcm produces unique IV and ciphertext for identical plaintexts (IND-CPA security)', () async {
+      const plaintext = 'ConsistentPasswordValue';
+      final key = await cryptoService.deriveMasterKey(
+        masterPassword: 'MasterPassword123!',
+        saltBase64: cryptoService.generateSalt(),
+      );
+
+      final enc1 = await cryptoService.encryptAesGcm(plaintext: plaintext, keyBytes: key);
+      final enc2 = await cryptoService.encryptAesGcm(plaintext: plaintext, keyBytes: key);
+
+      expect(enc1['iv'], isNot(equals(enc2['iv'])));
+      expect(enc1['ciphertext'], isNot(equals(enc2['ciphertext'])));
+    });
+
+    test('encryptAesGcm with custom nonce uses specified nonce', () async {
+      const plaintext = 'CustomNoncePayload';
+      final key = await cryptoService.deriveMasterKey(
+        masterPassword: 'MasterPassword123!',
+        saltBase64: cryptoService.generateSalt(),
+      );
+      final customNonce = cryptoService.generateNonce(12);
+
+      final encrypted = await cryptoService.encryptAesGcm(
+        plaintext: plaintext,
+        keyBytes: key,
+        customNonce: customNonce,
+      );
+
+      expect(base64Decode(encrypted['iv']!), equals(customNonce));
+    });
+
+    test('encryptBytesAesGcm encrypts raw byte payloads', () async {
+      final bytes = utf8.encode('RawByteSecret');
+      final key = await cryptoService.deriveMasterKey(
+        masterPassword: 'MasterPassword123!',
+        saltBase64: cryptoService.generateSalt(),
+      );
+
+      final encrypted = await cryptoService.encryptBytesAesGcm(
+        plaintextBytes: bytes,
+        keyBytes: key,
+      );
+
+      expect(encrypted['ciphertext'], isNotEmpty);
+      expect(base64Decode(encrypted['iv']!).length, equals(12));
+    });
+
+    test('encryptAesGcm throws ArgumentError if key length is not exactly 32 bytes', () async {
+      final invalidKey = [1, 2, 3, 4, 5]; // 5 bytes instead of 32
+
+      expect(
+        () async => await cryptoService.encryptAesGcm(
+          plaintext: 'test',
+          keyBytes: invalidKey,
+        ),
+        throwsArgumentError,
+      );
+    });
 
     test('AES-256-GCM encryption and decryption round-trip', () async {
       const secretMessage = '{"title":"GitHub","username":"user@example.com","password":"SecretPassword123"}';
@@ -131,10 +214,6 @@ void main() {
         plaintext: secretMessage,
         keyBytes: key,
       );
-
-      expect(encrypted['ciphertext'], isNotEmpty);
-      expect(encrypted['iv'], isNotEmpty);
-      expect(encrypted['tag'], isNotEmpty);
 
       final decrypted = await cryptoService.decryptAesGcm(
         ciphertextBase64: encrypted['ciphertext']!,
