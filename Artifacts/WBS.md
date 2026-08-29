@@ -94,7 +94,7 @@ Companion to `MVP.md` (scope/schema), `ARCHITECTURE_DESIGN.md` (system design), 
 ### 7.0 Flutter Vault UI — Day 7
 | ID | Task | Depends On | Status |
 | :-- | :-- | :-- | :-- |
-| 7.1 | `[F]` `VaultState` provider (list, add, edit, delete) | 5.2, 6.2 | |
+| 7.1 | `[F]` `VaultState` provider (list, add, edit, delete) | 5.2, 6.2 | Done |
 | 7.2 | `[F]` Vault list screen | 7.1 | |
 | 7.3 | `[F]` Add/edit entry form → encrypts before send | 7.1, 6.2 | |
 | 7.4 | `[F]` Delete confirmation flow | 7.1 | |
