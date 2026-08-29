@@ -83,7 +83,7 @@ Companion to `MVP.md` (scope/schema), `ARCHITECTURE_DESIGN.md` (system design), 
 | 6.2 | `[F]` AES-256-GCM encrypt function → `{ciphertext, iv, tag}` | 6.1 | Done |
 | 6.3 | `[F]` AES-256-GCM decrypt function | 6.1 | Done |
 | 6.4 | `[F]` Round-trip unit test: plaintext → encrypt → decrypt → match | 6.2, 6.3 | Done |
-| 6.5 | `[F]` Session key stored only in `flutter_secure_storage`, never written to local cache DB | 6.1, 5.5 | |
+| 6.5 | `[F]` Session key stored only in `flutter_secure_storage`, never written to local cache DB | 6.1, 5.5 | Done |
 
 **Exit criteria:** Encrypt/decrypt round-trip test passes; manual inspection confirms only ciphertext is ever sent over the wire (verify against backend logs from 4.3).
 
