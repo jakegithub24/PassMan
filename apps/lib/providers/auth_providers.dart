@@ -69,6 +69,9 @@ final StateNotifierProvider<AuthNotifier, AuthState> authStateProvider =
   return notifier;
 });
 
+/// Alias provider for AuthNotifier
+final StateNotifierProvider<AuthNotifier, AuthState> authNotifierProvider = authStateProvider;
+
 // -----------------------------------------------------------------------------
 // Granular Selectors / Convenience Providers
 // -----------------------------------------------------------------------------
