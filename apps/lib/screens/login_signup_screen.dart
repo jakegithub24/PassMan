@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../theme/app_theme.dart';
 
 enum AuthMode { login, signup }
@@ -48,6 +49,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> with SingleTicker
 
   void _switchMode(AuthMode mode) {
     if (_authMode != mode) {
+      HapticFeedback.selectionClick();
       setState(() {
         _authMode = mode;
         _formKey.currentState?.reset();
@@ -89,6 +91,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> with SingleTicker
   }
 
   void _handleSubmit() {
+    HapticFeedback.lightImpact();
     if (_formKey.currentState?.validate() ?? false) {
       final email = _emailController.text.trim().toLowerCase();
       final password = _passwordController.text;
@@ -103,33 +106,43 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> with SingleTicker
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.frameBg,
-      body: Stack(
-        children: [
-          // 1. Ambient Background Layer (Cached via RepaintBoundary)
-          const Positioned.fill(
-            child: RepaintBoundary(
-              child: CustomPaint(
-                painter: AmbientBackgroundPainter(),
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarIconBrightness: Brightness.dark,
+      ),
+      child: Scaffold(
+        backgroundColor: AppColors.frameBg,
+        resizeToAvoidBottomInset: true,
+        body: Stack(
+          children: [
+            // 1. Ambient Background Layer (Cached via RepaintBoundary)
+            const Positioned.fill(
+              child: RepaintBoundary(
+                child: CustomPaint(
+                  painter: AmbientBackgroundPainter(),
+                ),
               ),
             ),
-          ),
 
-          // 2. Responsive Content Canvas
-          SafeArea(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final isDesktop = constraints.maxWidth >= 900;
-                return Center(
-                  child: isDesktop
-                      ? _buildDesktopLayout(context, constraints)
-                      : _buildMobileLayout(context, constraints),
-                );
-              },
+            // 2. Responsive Content Canvas
+            SafeArea(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final isDesktop = constraints.maxWidth >= 900;
+                  return Center(
+                    child: isDesktop
+                        ? _buildDesktopLayout(context, constraints)
+                        : _buildMobileLayout(context, constraints),
+                  );
+                },
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -199,7 +212,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> with SingleTicker
       child: Stack(
         clipBehavior: Clip.antiAlias,
         children: [
-          // Hardware-accelerated ambient glowing orbs (zero raster lag on Web)
+          // Hardware-accelerated ambient glowing orbs
           Positioned(
             top: -90,
             right: -100,
@@ -456,17 +469,17 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> with SingleTicker
   }
 
   // ---------------------------------------------------------------------------
-  // Mobile / Compact Layout
+  // Mobile / Compact Android Layout (Fixed & Non-scrollable viewport)
   // Matches UI-UX/UI/mobile_login_sign_up.html
   // ---------------------------------------------------------------------------
 
   Widget _buildMobileLayout(BuildContext context, BoxConstraints constraints) {
-    final maxWidth = math.min(380.0, constraints.maxWidth - 32.0);
+    final maxWidth = math.min(364.0, constraints.maxWidth - 32.0);
 
     return Center(
       child: SingleChildScrollView(
         physics: const ClampingScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         child: ConstrainedBox(
           constraints: BoxConstraints(maxWidth: maxWidth),
           child: Column(
@@ -477,54 +490,54 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> with SingleTicker
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Container(
-                    width: 44,
-                    height: 44,
+                    width: 38,
+                    height: 38,
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(13),
+                      borderRadius: BorderRadius.circular(11),
                       boxShadow: const [
                         BoxShadow(
-                          color: Color(0x570C447C), // rgba(12,68,124,0.34)
-                          blurRadius: 20,
-                          offset: Offset(0, 8),
+                          color: Color(0x380C447C), // rgba(12,68,124,0.22)
+                          blurRadius: 14,
+                          offset: Offset(0, 5),
                         ),
                       ],
                     ),
                     child: ClipRRect(
-                      borderRadius: BorderRadius.circular(13),
+                      borderRadius: BorderRadius.circular(11),
                       child: Image.asset(
                         'assets/logo/PassMan.png',
-                        width: 44,
-                        height: 44,
+                        width: 38,
+                        height: 38,
                         fit: BoxFit.cover,
                       ),
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 9),
                   const Text(
                     'PassMan',
                     style: TextStyle(
-                      fontSize: 20,
+                      fontSize: 19.5,
                       fontWeight: FontWeight.w700,
                       color: AppColors.ink,
-                      letterSpacing: -0.4,
+                      letterSpacing: -0.3,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 12),
 
               // Mobile Glass Container (.auth-card)
               AppGlassCard(
                 borderRadius: 20,
-                padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 24),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                 backgroundColor: AppColors.glassWhite,
                 borderColor: AppColors.glassBorderStrong,
                 blurSigma: 20,
                 boxShadow: const [
                   BoxShadow(
                     color: Color(0x1414161A),
-                    blurRadius: 32,
-                    offset: Offset(0, 16),
+                    blurRadius: 28,
+                    offset: Offset(0, 12),
                   ),
                 ],
                 child: _buildAuthForm(context, isCompact: true),
@@ -537,7 +550,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> with SingleTicker
   }
 
   // ---------------------------------------------------------------------------
-  // Core Auth Form Widget (With fluent micro-animations and zero jitter)
+  // Core Auth Form Widget (Compact, Non-overflowing & Fluent)
   // ---------------------------------------------------------------------------
 
   Widget _buildAuthForm(BuildContext context, {required bool isCompact}) {
@@ -551,7 +564,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> with SingleTicker
         children: [
           // 1. Segmented Tabs (.auth-tabs)
           Container(
-            padding: const EdgeInsets.all(4),
+            padding: const EdgeInsets.all(3.5),
             decoration: BoxDecoration(
               color: const Color(0x80FFFFFF), // rgba(255,255,255,0.50)
               borderRadius: BorderRadius.circular(11),
@@ -563,6 +576,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> with SingleTicker
                   child: _buildTabButton(
                     title: 'Log in',
                     isActive: isLogin,
+                    isCompact: isCompact,
                     onTap: () => _switchMode(AuthMode.login),
                   ),
                 ),
@@ -571,13 +585,14 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> with SingleTicker
                   child: _buildTabButton(
                     title: 'Sign up',
                     isActive: !isLogin,
+                    isCompact: isCompact,
                     onTap: () => _switchMode(AuthMode.signup),
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 20),
+          SizedBox(height: isCompact ? 14 : 18),
 
           // 2. Title & Subtitle with Animated Crossfade
           AnimatedSwitcher(
@@ -589,32 +604,32 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> with SingleTicker
                 Text(
                   isLogin ? 'Welcome back' : 'Create your vault',
                   style: TextStyle(
-                    fontSize: isCompact ? 18.5 : 19.5,
+                    fontSize: isCompact ? 18 : 19.5,
                     fontWeight: FontWeight.w800,
                     color: AppColors.ink,
                     letterSpacing: -0.3,
                   ),
                 ),
-                const SizedBox(height: 5),
+                const SizedBox(height: 3),
                 Text(
                   isLogin
                       ? (isCompact
-                          ? 'Sign in to access your encrypted vault, synced across every device.'
+                          ? 'Sign in to access your encrypted vault.'
                           : 'Enter your details to access your vault.')
                       : 'Set up your encrypted vault in under a minute.',
-                  style: const TextStyle(
-                    fontSize: 12,
+                  style: TextStyle(
+                    fontSize: isCompact ? 11.5 : 12,
                     color: AppColors.inkSoft,
-                    height: 1.4,
+                    height: 1.35,
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: isCompact ? 12 : 16),
 
           // 3. Email Field (.field-group)
-          _buildFieldLabel('Email'),
+          _buildFieldLabel('Email', isCompact: isCompact),
           TextFormField(
             controller: _emailController,
             focusNode: _emailFocus,
@@ -627,12 +642,13 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> with SingleTicker
             decoration: _buildInputDecoration(
               hintText: 'you@example.com',
               prefixIcon: Icons.mail_outline,
+              isCompact: isCompact,
             ),
           ),
-          const SizedBox(height: 14),
+          SizedBox(height: isCompact ? 10 : 14),
 
           // 4. Master Password Field (.field-group)
-          _buildFieldLabel('Master password'),
+          _buildFieldLabel('Master password', isCompact: isCompact),
           TextFormField(
             controller: _passwordController,
             focusNode: _passwordFocus,
@@ -651,6 +667,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> with SingleTicker
             decoration: _buildInputDecoration(
               hintText: '••••••••••••',
               prefixIcon: Icons.lock_outline,
+              isCompact: isCompact,
               suffixIcon: MouseRegion(
                 cursor: SystemMouseCursors.click,
                 child: IconButton(
@@ -659,7 +676,10 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> with SingleTicker
                     size: 16,
                     color: AppColors.inkSoft,
                   ),
-                  onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                  onPressed: () {
+                    HapticFeedback.selectionClick();
+                    setState(() => _obscurePassword = !_obscurePassword);
+                  },
                 ),
               ),
             ),
@@ -673,8 +693,8 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> with SingleTicker
                 ? Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const SizedBox(height: 14),
-                      _buildFieldLabel('Confirm master password'),
+                      SizedBox(height: isCompact ? 10 : 14),
+                      _buildFieldLabel('Confirm master password', isCompact: isCompact),
                       TextFormField(
                         controller: _confirmPasswordController,
                         focusNode: _confirmPasswordFocus,
@@ -686,6 +706,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> with SingleTicker
                         decoration: _buildInputDecoration(
                           hintText: '••••••••••••',
                           prefixIcon: Icons.lock_reset,
+                          isCompact: isCompact,
                           suffixIcon: MouseRegion(
                             cursor: SystemMouseCursors.click,
                             child: IconButton(
@@ -694,7 +715,10 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> with SingleTicker
                                 size: 16,
                                 color: AppColors.inkSoft,
                               ),
-                              onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
+                              onPressed: () {
+                                HapticFeedback.selectionClick();
+                                setState(() => _obscureConfirmPassword = !_obscureConfirmPassword);
+                              },
                             ),
                           ),
                         ),
@@ -704,7 +728,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> with SingleTicker
                 : const SizedBox.shrink(),
           ),
 
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
 
           // 6. Remember Me & Forgot Password Row (Login mode only)
           AnimatedSize(
@@ -712,7 +736,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> with SingleTicker
             curve: Curves.easeInOutCubic,
             child: isLogin
                 ? Padding(
-                    padding: const EdgeInsets.only(top: 2, bottom: 16),
+                    padding: EdgeInsets.only(top: 2, bottom: isCompact ? 12 : 16),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -720,7 +744,10 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> with SingleTicker
                           child: MouseRegion(
                             cursor: SystemMouseCursors.click,
                             child: GestureDetector(
-                              onTap: () => setState(() => _rememberMe = !_rememberMe),
+                              onTap: () {
+                                HapticFeedback.selectionClick();
+                                setState(() => _rememberMe = !_rememberMe);
+                              },
                               behavior: HitTestBehavior.opaque,
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
@@ -745,7 +772,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> with SingleTicker
                                   const Flexible(
                                     child: Text(
                                       'Remember me',
-                                      style: TextStyle(fontSize: 12, color: AppColors.inkSoft),
+                                      style: TextStyle(fontSize: 11.5, color: AppColors.inkSoft),
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
@@ -759,6 +786,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> with SingleTicker
                           cursor: SystemMouseCursors.click,
                           child: TextButton(
                             onPressed: () {
+                              HapticFeedback.lightImpact();
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
                                   content: Text('Zero-Knowledge notice: Master passwords cannot be reset without your local salt/keys.'),
@@ -773,7 +801,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> with SingleTicker
                             child: Text(
                               isCompact ? 'Forgot?' : 'Forgot password?',
                               style: const TextStyle(
-                                fontSize: 12,
+                                fontSize: 11.5,
                                 fontWeight: FontWeight.w600,
                                 color: AppColors.navy,
                               ),
@@ -783,12 +811,12 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> with SingleTicker
                       ],
                     ),
                   )
-                : const SizedBox(height: 10),
+                : const SizedBox(height: 8),
           ),
 
-          // 7. Primary Submit Button (.auth-submit)
-          _buildSubmitButton(isLogin),
-          const SizedBox(height: 16),
+          // 7. Primary Submit Button (.auth-submit) with Material Ripple
+          _buildSubmitButton(isLogin, isCompact: isCompact),
+          SizedBox(height: isCompact ? 12 : 16),
 
           // 8. Divider (.auth-divider)
           const Row(
@@ -798,22 +826,23 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> with SingleTicker
                 padding: EdgeInsets.symmetric(horizontal: 8),
                 child: Text(
                   'or continue with',
-                  style: TextStyle(fontSize: 11, color: AppColors.inkSoft),
+                  style: TextStyle(fontSize: 10.5, color: AppColors.inkSoft),
                 ),
               ),
               Expanded(child: Divider(color: AppColors.dividerHairline, height: 1)),
             ],
           ),
-          const SizedBox(height: 14),
+          SizedBox(height: isCompact ? 10 : 14),
 
           // 9. Social Buttons (.auth-socials)
           Row(
             children: [
               Expanded(
                 child: _buildSocialButton(
-                  customIcon: const GoogleLogoWidget(size: 15),
+                  customIcon: const GoogleLogoWidget(size: 14),
                   label: 'Google',
-                  onTap: () {},
+                  isCompact: isCompact,
+                  onTap: () => HapticFeedback.lightImpact(),
                 ),
               ),
               const SizedBox(width: 10),
@@ -821,12 +850,13 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> with SingleTicker
                 child: _buildSocialButton(
                   icon: Icons.apple,
                   label: 'Apple',
-                  onTap: () {},
+                  isCompact: isCompact,
+                  onTap: () => HapticFeedback.lightImpact(),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: isCompact ? 12 : 16),
 
           // 10. Footer Switch Link (.auth-footer)
           Center(
@@ -836,7 +866,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> with SingleTicker
               children: [
                 Text(
                   isLogin ? "Don't have an account? " : "Already have an account? ",
-                  style: const TextStyle(fontSize: 12, color: AppColors.inkSoft),
+                  style: TextStyle(fontSize: isCompact ? 11.5 : 12, color: AppColors.inkSoft),
                 ),
                 MouseRegion(
                   cursor: SystemMouseCursors.click,
@@ -844,8 +874,8 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> with SingleTicker
                     onTap: () => _switchMode(isLogin ? AuthMode.signup : AuthMode.login),
                     child: Text(
                       isLogin ? 'Sign up' : 'Log in',
-                      style: const TextStyle(
-                        fontSize: 12,
+                      style: TextStyle(
+                        fontSize: isCompact ? 11.5 : 12,
                         fontWeight: FontWeight.w600,
                         color: AppColors.navy,
                       ),
@@ -864,13 +894,13 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> with SingleTicker
   // Micro-Interactive Widgets & Buttons
   // ---------------------------------------------------------------------------
 
-  Widget _buildFieldLabel(String label) {
+  Widget _buildFieldLabel(String label, {required bool isCompact}) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 5),
+      padding: EdgeInsets.only(bottom: isCompact ? 3.5 : 5),
       child: Text(
         label,
-        style: const TextStyle(
-          fontSize: 12,
+        style: TextStyle(
+          fontSize: isCompact ? 11.5 : 12,
           fontWeight: FontWeight.w600,
           color: AppColors.ink,
         ),
@@ -882,15 +912,16 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> with SingleTicker
     required String hintText,
     required IconData prefixIcon,
     Widget? suffixIcon,
+    required bool isCompact,
   }) {
     return InputDecoration(
       hintText: hintText,
-      hintStyle: const TextStyle(color: AppColors.inkSoft, fontSize: 12.5),
+      hintStyle: TextStyle(color: AppColors.inkSoft, fontSize: isCompact ? 12 : 12.5),
       filled: true,
       fillColor: AppColors.inputBg,
-      prefixIcon: Icon(prefixIcon, size: 15, color: AppColors.inkSoft),
+      prefixIcon: Icon(prefixIcon, size: isCompact ? 14 : 15, color: AppColors.inkSoft),
       suffixIcon: suffixIcon,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
+      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: isCompact ? 9 : 11),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
         borderSide: const BorderSide(color: AppColors.inputBorder, width: 1),
@@ -917,16 +948,18 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> with SingleTicker
   Widget _buildTabButton({
     required String title,
     required bool isActive,
+    required bool isCompact,
     required VoidCallback onTap,
   }) {
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
         onTap: onTap,
+        behavior: HitTestBehavior.opaque,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           curve: Curves.easeInOutCubic,
-          padding: const EdgeInsets.symmetric(vertical: 8),
+          padding: EdgeInsets.symmetric(vertical: isCompact ? 7 : 8),
           decoration: BoxDecoration(
             gradient: isActive ? AppColors.primaryGradient : null,
             color: isActive ? null : Colors.transparent,
@@ -945,7 +978,7 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> with SingleTicker
             child: Text(
               title,
               style: TextStyle(
-                fontSize: 13,
+                fontSize: isCompact ? 12.5 : 13,
                 fontWeight: FontWeight.w600,
                 color: isActive ? Colors.white : AppColors.inkSoft,
               ),
@@ -956,37 +989,36 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> with SingleTicker
     );
   }
 
-  Widget _buildSubmitButton(bool isLogin) {
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: Container(
-        width: double.infinity,
-        height: 44,
-        decoration: BoxDecoration(
-          gradient: AppColors.primaryGradient,
+  Widget _buildSubmitButton(bool isLogin, {required bool isCompact}) {
+    return Container(
+      width: double.infinity,
+      height: isCompact ? 40 : 44,
+      decoration: BoxDecoration(
+        gradient: AppColors.primaryGradient,
+        borderRadius: BorderRadius.circular(11),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x4D0C447C), // rgba(12,68,124,0.30)
+            blurRadius: 20,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: _handleSubmit,
           borderRadius: BorderRadius.circular(11),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x4D0C447C), // rgba(12,68,124,0.30)
-              blurRadius: 20,
-              offset: Offset(0, 8),
-            ),
-          ],
-        ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: _handleSubmit,
-            borderRadius: BorderRadius.circular(11),
-            child: Center(
-              child: Text(
-                isLogin ? 'Log in' : 'Create account',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.1,
-                ),
+          splashColor: Colors.white24,
+          highlightColor: Colors.white10,
+          child: Center(
+            child: Text(
+              isLogin ? 'Log in' : 'Create account',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: isCompact ? 13 : 13.5,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.1,
               ),
             ),
           ),
@@ -999,15 +1031,18 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> with SingleTicker
     IconData? icon,
     Widget? customIcon,
     required String label,
+    required bool isCompact,
     required VoidCallback onTap,
   }) {
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
+    return Material(
+      color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(10),
+        splashColor: AppColors.navy.withValues(alpha: 0.1),
+        highlightColor: AppColors.navy.withValues(alpha: 0.05),
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 9),
+          padding: EdgeInsets.symmetric(vertical: isCompact ? 8 : 9),
           decoration: BoxDecoration(
             color: AppColors.glassWhite,
             borderRadius: BorderRadius.circular(10),
@@ -1019,12 +1054,12 @@ class _LoginSignupScreenState extends State<LoginSignupScreen> with SingleTicker
               if (customIcon != null)
                 customIcon
               else if (icon != null)
-                Icon(icon, size: 17, color: AppColors.ink),
+                Icon(icon, size: isCompact ? 15 : 17, color: AppColors.ink),
               const SizedBox(width: 6),
               Text(
                 label,
-                style: const TextStyle(
-                  fontSize: 12,
+                style: TextStyle(
+                  fontSize: isCompact ? 11.5 : 12,
                   fontWeight: FontWeight.w600,
                   color: AppColors.ink,
                 ),
