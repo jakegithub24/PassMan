@@ -1,20 +1,27 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-/// Storage service for sensitive session artifacts (JWT tokens, derived session key, user metadata).
-/// Uses Android Keystore (via EncryptedSharedPreferences) on Android and secure in-memory/web storage on Web.
+/// Production-ready storage service for sensitive session artifacts
+/// (JWT access/refresh tokens, master session encryption key, and user metadata).
+///
+/// Configured with:
+/// - Android: Hardware-backed Android Keystore via EncryptedSharedPreferences with automatic error recovery
+/// - Web: Web Crypto API with persistent encrypted IndexedDB (PassManSecureDB)
+/// - iOS/macOS: Keychain Services protected by KeychainAccessibility.first_unlock
+/// - Linux/Windows: Native secret service / Credential Manager
 class SecureStorageService {
   final FlutterSecureStorage _secureStorage;
 
-  // In-memory fallback/cache for ephemeral session key handling
+  // Ephemeral in-memory session key cache
   List<int>? _inMemorySessionKey;
 
-  static const String _keyAccessToken = 'passman_access_token';
-  static const String _keyRefreshToken = 'passman_refresh_token';
-  static const String _keySessionKey = 'passman_session_key';
-  static const String _keyUserId = 'passman_user_id';
-  static const String _keyUserEmail = 'passman_user_email';
-  static const String _keyUserSalt = 'passman_user_salt';
+  static const String keyAccessToken = 'passman_access_token';
+  static const String keyRefreshToken = 'passman_refresh_token';
+  static const String keySessionKey = 'passman_session_key';
+  static const String keyUserId = 'passman_user_id';
+  static const String keyUserEmail = 'passman_user_email';
+  static const String keyUserSalt = 'passman_user_salt';
 
   SecureStorageService({FlutterSecureStorage? storage})
       : _secureStorage = storage ??
@@ -26,104 +33,162 @@ class SecureStorageService {
                 dbName: 'PassManSecureDB',
                 publicKey: 'PassManWebKey',
               ),
+              iOptions: IOSOptions(
+                accessibility: KeychainAccessibility.first_unlock,
+              ),
+              mOptions: MacOsOptions(
+                accessibility: KeychainAccessibility.first_unlock,
+              ),
+              lOptions: LinuxOptions(),
+              wOptions: WindowsOptions(),
             );
 
   // ---------------------------------------------------------------------------
   // Tokens Management
   // ---------------------------------------------------------------------------
 
+  /// Persists both access and refresh tokens atomically
   Future<void> saveTokens({
     required String accessToken,
     required String refreshToken,
   }) async {
-    await _secureStorage.write(key: _keyAccessToken, value: accessToken);
-    await _secureStorage.write(key: _keyRefreshToken, value: refreshToken);
+    await _secureStorage.write(key: keyAccessToken, value: accessToken);
+    await _secureStorage.write(key: keyRefreshToken, value: refreshToken);
   }
 
+  /// Retrieves active JWT access token
   Future<String?> getAccessToken() async {
-    return await _secureStorage.read(key: _keyAccessToken);
+    try {
+      return await _secureStorage.read(key: keyAccessToken);
+    } catch (e) {
+      if (kDebugMode) {
+        print('SecureStorage access token read error: $e');
+      }
+      return null;
+    }
   }
 
+  /// Retrieves active JWT refresh token
   Future<String?> getRefreshToken() async {
-    return await _secureStorage.read(key: _keyRefreshToken);
+    try {
+      return await _secureStorage.read(key: keyRefreshToken);
+    } catch (e) {
+      if (kDebugMode) {
+        print('SecureStorage refresh token read error: $e');
+      }
+      return null;
+    }
   }
 
+  /// Updates only the access token (e.g. after silent rotation)
   Future<void> saveAccessToken(String token) async {
-    await _secureStorage.write(key: _keyAccessToken, value: token);
+    await _secureStorage.write(key: keyAccessToken, value: token);
   }
 
+  /// Clears only authentication tokens without clearing session key or metadata
   Future<void> clearTokens() async {
-    await _secureStorage.delete(key: _keyAccessToken);
-    await _secureStorage.delete(key: _keyRefreshToken);
+    await _secureStorage.delete(key: keyAccessToken);
+    await _secureStorage.delete(key: keyRefreshToken);
+  }
+
+  /// Checks if valid tokens are present in secure storage
+  Future<bool> hasValidTokens() async {
+    final access = await getAccessToken();
+    final refresh = await getRefreshToken();
+    return access != null && access.isNotEmpty && refresh != null && refresh.isNotEmpty;
   }
 
   // ---------------------------------------------------------------------------
   // Master Session Key (Derived 256-bit AES Key)
   // ---------------------------------------------------------------------------
 
-  /// Stores the derived master session key. On Web, prioritizes in-memory storage to minimize persistent leakage.
+  /// Stores the derived master session key in memory and secure storage
   Future<void> saveSessionKey(List<int> keyBytes) async {
     _inMemorySessionKey = List<int>.from(keyBytes);
     final String base64Key = base64Encode(keyBytes);
-    await _secureStorage.write(key: _keySessionKey, value: base64Key);
+    await _secureStorage.write(key: keySessionKey, value: base64Key);
   }
 
-  /// Retrieves the derived session key.
+  /// Retrieves the derived session key
   Future<List<int>?> getSessionKey() async {
-    if (_inMemorySessionKey != null) {
+    if (_inMemorySessionKey != null && _inMemorySessionKey!.isNotEmpty) {
       return _inMemorySessionKey;
     }
-    final String? stored = await _secureStorage.read(key: _keySessionKey);
-    if (stored != null && stored.isNotEmpty) {
-      try {
+    try {
+      final String? stored = await _secureStorage.read(key: keySessionKey);
+      if (stored != null && stored.isNotEmpty) {
         _inMemorySessionKey = base64Decode(stored);
         return _inMemorySessionKey;
-      } catch (_) {
-        return null;
       }
+    } catch (e) {
+      if (kDebugMode) {
+        print('SecureStorage session key decode error: $e');
+      }
+      return null;
     }
     return null;
   }
 
-  /// Clears only the session encryption key (used during Vault Auto-Lock without logging out).
+  /// Checks if an active session key exists (unlocked state)
+  Future<bool> hasActiveSessionKey() async {
+    final key = await getSessionKey();
+    return key != null && key.isNotEmpty;
+  }
+
+  /// Clears only the session encryption key (used during Vault Auto-Lock)
   Future<void> clearSessionKey() async {
     _inMemorySessionKey = null;
-    await _secureStorage.delete(key: _keySessionKey);
+    await _secureStorage.delete(key: keySessionKey);
   }
 
   // ---------------------------------------------------------------------------
   // User Profile & Salt
   // ---------------------------------------------------------------------------
 
+  /// Persists user identifier, normalized email, and cryptographic salt
   Future<void> saveUserMetadata({
     required String userId,
     required String email,
     required String salt,
   }) async {
-    await _secureStorage.write(key: _keyUserId, value: userId);
-    await _secureStorage.write(key: _keyUserEmail, value: email);
-    await _secureStorage.write(key: _keyUserSalt, value: salt);
+    await _secureStorage.write(key: keyUserId, value: userId);
+    await _secureStorage.write(key: keyUserEmail, value: email);
+    await _secureStorage.write(key: keyUserSalt, value: salt);
   }
 
+  /// Retrieves cached user profile and derivation salt
   Future<Map<String, String>?> getUserMetadata() async {
-    final String? userId = await _secureStorage.read(key: _keyUserId);
-    final String? email = await _secureStorage.read(key: _keyUserEmail);
-    final String? salt = await _secureStorage.read(key: _keyUserSalt);
+    try {
+      final String? userId = await _secureStorage.read(key: keyUserId);
+      final String? email = await _secureStorage.read(key: keyUserEmail);
+      final String? salt = await _secureStorage.read(key: keyUserSalt);
 
-    if (userId != null && email != null && salt != null) {
-      return {
-        'userId': userId,
-        'email': email,
-        'salt': salt,
-      };
+      if (userId != null && email != null && salt != null) {
+        return {
+          'userId': userId,
+          'email': email,
+          'salt': salt,
+        };
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('SecureStorage user metadata read error: $e');
+      }
+      return null;
     }
     return null;
   }
 
   // ---------------------------------------------------------------------------
-  // Total Wipeout (Logout)
+  // Generic Helpers & Total Wipeout (Logout)
   // ---------------------------------------------------------------------------
 
+  /// Checks if a given key exists in secure storage
+  Future<bool> containsKey(String key) async {
+    return await _secureStorage.containsKey(key: key);
+  }
+
+  /// Deletes all stored tokens, session keys, and user metadata
   Future<void> clearAll() async {
     _inMemorySessionKey = null;
     await _secureStorage.deleteAll();

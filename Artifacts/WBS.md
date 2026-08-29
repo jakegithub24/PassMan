@@ -72,7 +72,7 @@ Companion to `MVP.md` (scope/schema), `ARCHITECTURE_DESIGN.md` (system design), 
 | 5.2 | `[F]` Riverpod `AuthState` provider | 5.1 | Done |
 | 5.3 | `[F]` Dio client base config + JWT-attach interceptor | 1.5 | Done |
 | 5.4 | `[F]` 401 interceptor: call `/auth/refresh`, retry original request once, else force logout | 5.3, 2.6 | Done |
-| 5.5 | `[F]` Token storage via `flutter_secure_storage` (Android + Web) | 5.3 | |
+| 5.5 | `[F]` Token storage via `flutter_secure_storage` (Android + Web) | 5.3 | Done |
 
 **Exit criteria:** Live login against backend from Day 2; simulated 401 correctly triggers refresh-and-retry.
 
