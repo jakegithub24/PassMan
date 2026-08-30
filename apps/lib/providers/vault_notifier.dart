@@ -4,25 +4,28 @@ import '../models/encrypted_vault_entry.dart';
 import '../models/vault_item.dart';
 import '../services/crypto_service.dart';
 import '../services/local_vault_storage_service.dart';
+import '../services/vault_api_service.dart';
 import '../utils/uuid_util.dart';
 import 'vault_state.dart';
 
-/// StateNotifier responsible for vault operations (listing, adding, editing, deleting, searching)
+/// StateNotifier responsible for vault operations (listing, adding, editing, deleting, searching, remote CRUD synchronization)
 class VaultNotifier extends StateNotifier<VaultState> {
   final LocalVaultStorageService localVaultStorage;
   final CryptoService cryptoService;
+  final VaultApiService? vaultApiService;
   final List<int>? Function() getSessionKey;
   final String? Function() getUserId;
 
   VaultNotifier({
     required this.localVaultStorage,
     required this.cryptoService,
+    this.vaultApiService,
     required this.getSessionKey,
     required this.getUserId,
   }) : super(const VaultState());
 
-  /// Loads and decrypts all cached entries from local storage using active session key
-  Future<void> loadVault() async {
+  /// Loads and decrypts all cached entries from local storage, then syncs with backend if online
+  Future<void> loadVault({bool syncRemote = true}) async {
     final sessionKey = getSessionKey();
     if (sessionKey == null || sessionKey.isEmpty) {
       state = state.copyWith(
@@ -38,36 +41,74 @@ class VaultNotifier extends StateNotifier<VaultState> {
     );
 
     try {
-      final entries = await localVaultStorage.getAllEntries(includeDeleted: false);
-      final List<VaultItem> decryptedItems = [];
+      // 1. Load local cached entries first
+      await _loadFromLocalStorage(sessionKey);
 
-      for (final entry in entries) {
-        try {
-          final decryptedJson = await cryptoService.decryptVaultPayload(
-            jsonPayload: entry.encryptedData,
-            keyBytes: sessionKey,
-          );
-          final decodedMap = jsonDecode(decryptedJson) as Map<String, dynamic>;
-          final item = VaultItem.fromJson(decodedMap);
-          decryptedItems.add(item);
-        } catch (_) {
-          // Ignore corrupt entry
-        }
+      // 2. Perform delta synchronization with backend if available
+      if (syncRemote && vaultApiService != null) {
+        await _syncWithRemote(sessionKey);
       }
 
       state = state.copyWith(
         status: VaultStatus.ready,
-        items: decryptedItems,
+        clearError: true,
       );
     } catch (e) {
       state = state.copyWith(
-        status: VaultStatus.error,
-        errorMessage: 'Failed to load vault items: $e',
+        status: VaultStatus.ready, // Keep local items ready even if network sync errors
+        errorMessage: 'Network sync error: $e',
       );
     }
   }
 
-  /// Encrypts and adds a new item to local storage and updates in-memory state
+  /// Helper to read and decrypt all entries from SQLite/local storage
+  Future<void> _loadFromLocalStorage(List<int> sessionKey) async {
+    final entries = await localVaultStorage.getAllEntries(includeDeleted: false);
+    final List<VaultItem> decryptedItems = [];
+
+    for (final entry in entries) {
+      try {
+        final decryptedJson = await cryptoService.decryptVaultPayload(
+          jsonPayload: entry.encryptedData,
+          keyBytes: sessionKey,
+        );
+        final decodedMap = jsonDecode(decryptedJson) as Map<String, dynamic>;
+        final item = VaultItem.fromJson(decodedMap);
+        decryptedItems.add(item);
+      } catch (_) {
+        // Ignore corrupted entry
+      }
+    }
+
+    state = state.copyWith(
+      status: VaultStatus.ready,
+      items: decryptedItems,
+    );
+  }
+
+  /// Synchronizes local storage with backend delta sync endpoint (GET /api/vault/sync)
+  Future<void> _syncWithRemote(List<int> sessionKey) async {
+    if (vaultApiService == null) return;
+
+    try {
+      final syncResult = await vaultApiService!.syncEntries();
+
+      for (final remoteEntry in syncResult.entries) {
+        if (remoteEntry.isDeleted) {
+          await localVaultStorage.markDeleted(remoteEntry.id);
+        } else {
+          await localVaultStorage.saveEntry(remoteEntry, isDirty: false);
+        }
+      }
+
+      // Re-read local storage after applying server deltas
+      await _loadFromLocalStorage(sessionKey);
+    } catch (_) {
+      // Fail gracefully in offline mode
+    }
+  }
+
+  /// Encrypts and adds a new item to local storage and syncs to backend CRUD endpoint (POST /api/vault/entries)
   Future<VaultItem?> addEntry({
     required String title,
     required String username,
@@ -105,14 +146,15 @@ class VaultNotifier extends StateNotifier<VaultState> {
         keyBytes: sessionKey,
       );
 
-      final entry = EncryptedVaultEntry(
+      final localEntry = EncryptedVaultEntry(
         id: newItem.id,
         userId: userId ?? '',
         encryptedData: encryptedPayload,
         updatedAt: newItem.updatedAt,
       );
 
-      await localVaultStorage.saveEntry(entry, isDirty: true);
+      // Save locally first
+      await localVaultStorage.saveEntry(localEntry, isDirty: true);
 
       // Optimistic in-memory update
       state = state.copyWith(
@@ -120,6 +162,17 @@ class VaultNotifier extends StateNotifier<VaultState> {
         items: [newItem, ...state.items],
         clearError: true,
       );
+
+      // Sync to backend endpoint (POST /api/vault/entries) if online
+      if (vaultApiService != null) {
+        try {
+          final serverEntry = await vaultApiService!.createEntry(encryptedPayload);
+          // Mark clean in local storage with authoritative server ID / timestamp
+          await localVaultStorage.saveEntry(serverEntry, isDirty: false);
+        } catch (_) {
+          // Kept dirty in local storage for background sync queue
+        }
+      }
 
       return newItem;
     } catch (e) {
@@ -131,7 +184,7 @@ class VaultNotifier extends StateNotifier<VaultState> {
     }
   }
 
-  /// Re-encrypts and updates an existing entry
+  /// Re-encrypts and updates an existing entry locally and on backend (PUT /api/vault/entries/{id})
   Future<bool> updateEntry(VaultItem updatedItem) async {
     final sessionKey = getSessionKey();
     final userId = getUserId();
@@ -155,14 +208,14 @@ class VaultNotifier extends StateNotifier<VaultState> {
         keyBytes: sessionKey,
       );
 
-      final entry = EncryptedVaultEntry(
+      final localEntry = EncryptedVaultEntry(
         id: itemWithNewTimestamp.id,
         userId: userId ?? '',
         encryptedData: encryptedPayload,
         updatedAt: itemWithNewTimestamp.updatedAt,
       );
 
-      await localVaultStorage.saveEntry(entry, isDirty: true);
+      await localVaultStorage.saveEntry(localEntry, isDirty: true);
 
       // Update in-memory item
       final updatedList = state.items.map((item) {
@@ -175,6 +228,19 @@ class VaultNotifier extends StateNotifier<VaultState> {
         clearError: true,
       );
 
+      // Sync to backend endpoint (PUT /api/vault/entries/{id}) if online
+      if (vaultApiService != null) {
+        try {
+          final serverEntry = await vaultApiService!.updateEntry(
+            itemWithNewTimestamp.id,
+            encryptedPayload,
+          );
+          await localVaultStorage.saveEntry(serverEntry, isDirty: false);
+        } catch (_) {
+          // Kept dirty in local storage for background sync queue
+        }
+      }
+
       return true;
     } catch (e) {
       state = state.copyWith(
@@ -185,7 +251,7 @@ class VaultNotifier extends StateNotifier<VaultState> {
     }
   }
 
-  /// Soft deletes an entry in local storage and removes it from active state
+  /// Soft deletes an entry locally and on backend (DELETE /api/vault/entries/{id})
   Future<bool> deleteEntry(String id) async {
     try {
       await localVaultStorage.markDeleted(id);
@@ -198,6 +264,15 @@ class VaultNotifier extends StateNotifier<VaultState> {
         clearError: true,
       );
 
+      // Sync to backend endpoint (DELETE /api/vault/entries/{id}) if online
+      if (vaultApiService != null) {
+        try {
+          await vaultApiService!.deleteEntry(id);
+        } catch (_) {
+          // Kept marked as dirty/tombstone locally
+        }
+      }
+
       return true;
     } catch (e) {
       state = state.copyWith(
@@ -205,6 +280,14 @@ class VaultNotifier extends StateNotifier<VaultState> {
         errorMessage: 'Failed to delete entry: $e',
       );
       return false;
+    }
+  }
+
+  /// Triggers a manual sync with backend
+  Future<void> syncWithServer() async {
+    final sessionKey = getSessionKey();
+    if (sessionKey != null && sessionKey.isNotEmpty) {
+      await _syncWithRemote(sessionKey);
     }
   }
 

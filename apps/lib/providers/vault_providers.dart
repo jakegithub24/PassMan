@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/vault_item.dart';
 import '../services/local_vault_storage_service.dart';
+import '../services/vault_api_service.dart';
 import 'auth_providers.dart';
 import 'vault_notifier.dart';
 import 'vault_state.dart';
@@ -15,6 +16,13 @@ final Provider<LocalVaultStorageService> localVaultStorageServiceProvider =
   return LocalVaultStorageService();
 });
 
+/// Provider for VaultApiService handling backend CRUD endpoints
+final Provider<VaultApiService> vaultApiServiceProvider =
+    Provider<VaultApiService>((ref) {
+  final dio = ref.watch(dioClientProvider);
+  return VaultApiService(dio: dio);
+});
+
 // -----------------------------------------------------------------------------
 // Vault State Notifier Provider
 // -----------------------------------------------------------------------------
@@ -24,10 +32,12 @@ final StateNotifierProvider<VaultNotifier, VaultState> vaultStateProvider =
     StateNotifierProvider<VaultNotifier, VaultState>((ref) {
   final localVaultStorage = ref.watch(localVaultStorageServiceProvider);
   final cryptoService = ref.watch(cryptoServiceProvider);
+  final vaultApiService = ref.watch(vaultApiServiceProvider);
 
   return VaultNotifier(
     localVaultStorage: localVaultStorage,
     cryptoService: cryptoService,
+    vaultApiService: vaultApiService,
     getSessionKey: () => ref.read(sessionKeyProvider),
     getUserId: () => ref.read(currentUserProvider)?.id,
   );

@@ -230,5 +230,5 @@ class _MockVaultNotifier extends VaultNotifier {
   }
 
   @override
-  Future<void> loadVault() async {}
+  Future<void> loadVault({bool syncRemote = true}) async {}
 }
