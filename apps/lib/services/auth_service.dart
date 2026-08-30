@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import '../models/auth_models.dart';
+import '../network/api_error_parser.dart';
 
 /// Network service for authentication endpoints matching backend/routers/auth.py
 class AuthService {
@@ -181,33 +182,9 @@ class AuthService {
   // ---------------------------------------------------------------------------
 
   Exception _handleDioError(DioException error) {
-    if (error.response?.data != null && error.response!.data is Map) {
-      final data = error.response!.data as Map;
-      final detail = data['detail'];
-      if (detail != null) {
-        if (detail is String) {
-          return Exception(detail);
-        } else if (detail is List && detail.isNotEmpty) {
-          final first = detail.first;
-          if (first is Map && first['msg'] != null) {
-            return Exception(first['msg'].toString());
-          }
-        }
-      }
-      final message = data['message'];
-      if (message != null) {
-        return Exception(message.toString());
-      }
-    }
-
-    if (error.type == DioExceptionType.connectionTimeout ||
-        error.type == DioExceptionType.receiveTimeout) {
-      return Exception('Connection timed out. Please check your network connection.');
-    }
-    if (error.type == DioExceptionType.connectionError) {
-      return Exception('Unable to reach PassMan authentication server.');
-    }
-
-    return Exception(error.message ?? 'Authentication service error');
+    return Exception(ApiErrorParser.parseDioException(
+      error,
+      fallbackMessage: 'Authentication service error',
+    ));
   }
 }
