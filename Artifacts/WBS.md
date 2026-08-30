@@ -12,26 +12,26 @@ Companion to `MVP.md` (scope/schema), `ARCHITECTURE_DESIGN.md` (system design), 
 ### 1.0 Project Setup — Day 1
 | ID | Task | Depends On | Status |
 | :-- | :-- | :-- | :-- |
-| 1.1 | `[I]` Create Supabase project, note connection string | — | |
-| 1.2 | `[B]` Init FastAPI project (Poetry/venv), base folder structure (`routers/`, `services/`, `models/`) | 1.1 | |
-| 1.3 | `[B]` Write schema DDL: `users`, `vault_entries` (with `deleted_at`), `refresh_tokens`, `audit_logs` | 1.1 | |
-| 1.4 | `[B]` Apply schema to Supabase, verify indexes (`idx_vault_user_sync`) | 1.3 | |
-| 1.5 | `[F]` `flutter create`, add core deps: `dio`, `riverpod`, `sqflite`, `hive`, `crypto`, `flutter_secure_storage`, `local_auth` | — | |
-| 1.6 | `[I]` `.env` scaffolding for FastAPI (DB URL, JWT secret, token expiries) | 1.2 | |
+| 1.1 | `[I]` Create Supabase project, note connection string | — | Done |
+| 1.2 | `[B]` Init FastAPI project (Poetry/venv), base folder structure (`routers/`, `services/`, `models/`) | 1.1 | Done |
+| 1.3 | `[B]` Write schema DDL: `users`, `vault_entries` (with `deleted_at`), `refresh_tokens`, `audit_logs` | 1.1 | Done |
+| 1.4 | `[B]` Apply schema to Supabase, verify indexes (`idx_vault_user_sync`) | 1.3 | Done |
+| 1.5 | `[F]` `flutter create`, add core deps: `dio`, `riverpod`, `sqflite`, `hive`, `crypto`, `flutter_secure_storage`, `local_auth` | — | Done |
+| 1.6 | `[I]` `.env` scaffolding for FastAPI (DB URL, JWT secret, token expiries) | 1.2 | Done |
 
 **Exit criteria:** FastAPI boots locally and connects to Supabase; Flutter project builds on Android + Web targets with no errors.
 
 ### 2.0 Backend Auth — Day 2
 | ID | Task | Depends On | Status |
 | :-- | :-- | :-- | :-- |
-| 2.1 | `[B]` Pydantic models: `UserCreate`, `UserLogin`, `TokenPair` | 1.2 | |
-| 2.2 | `[B]` `argon2-cffi` hashing service (hash + verify) | 2.1 | |
-| 2.3 | `[B]` `POST /api/auth/register` | 2.2 | |
-| 2.4 | `[B]` JWT service: single secret, `type` claim (`access`/`refresh`), platform expiries (10m access; 10d Android / 8h Web refresh) | 2.1 | |
-| 2.5 | `[B]` `POST /api/auth/login` — verify Argon2id, issue token pair, insert hashed refresh token row | 2.2, 2.4 | |
-| 2.6 | `[B]` `POST /api/auth/refresh` — validate refresh hash + expiry, rotate access token | 2.4, 2.5 | |
-| 2.7 | `[B]` `POST /api/auth/logout` — set `revoked_at` on refresh token | 2.5 | |
-| 2.8 | `[B]` `get_current_user` dependency (decode + validate JWT `type=access`) | 2.4 | |
+| 2.1 | `[B]` Pydantic models: `UserCreate`, `UserLogin`, `TokenPair` | 1.2 | Done |
+| 2.2 | `[B]` `argon2-cffi` hashing service (hash + verify) | 2.1 | Done |
+| 2.3 | `[B]` `POST /api/auth/register` | 2.2 | Done |
+| 2.4 | `[B]` JWT service: single secret, `type` claim (`access`/`refresh`), platform expiries (10m access; 10d Android / 8h Web refresh) | 2.1 | Done |
+| 2.5 | `[B]` `POST /api/auth/login` — verify Argon2id, issue token pair, insert hashed refresh token row | 2.2, 2.4 | Done |
+| 2.6 | `[B]` `POST /api/auth/refresh` — validate refresh hash + expiry, rotate access token | 2.4, 2.5 | Done |
+| 2.7 | `[B]` `POST /api/auth/logout` — set `revoked_at` on refresh token | 2.5 | Done |
+| 2.8 | `[B]` `get_current_user` dependency (decode + validate JWT `type=access`) | 2.4 | Done |
 
 **Exit criteria:** Register → login → refresh → logout works end-to-end via curl/Postman; no plaintext password ever appears in logs or DB.
 
@@ -42,22 +42,22 @@ Companion to `MVP.md` (scope/schema), `ARCHITECTURE_DESIGN.md` (system design), 
 ### 3.0 Vault CRUD — Day 3
 | ID | Task | Depends On | Status |
 | :-- | :-- | :-- | :-- |
-| 3.1 | `[B]` `POST /api/vault/entries` — accept `{ciphertext, iv, tag}` only, reject any plaintext-shaped field | 2.8 | |
-| 3.2 | `[B]` `PUT /api/vault/entries/{id}` — ownership check, bump `updated_at` | 3.1 | |
-| 3.3 | `[B]` `DELETE /api/vault/entries/{id}` — soft delete: set `deleted_at`, bump `updated_at` | 3.1 | |
-| 3.4 | `[B]` `GET /api/vault/entries?since=<ts>` — delta query, **includes** tombstoned rows | 3.1 | |
-| 3.5 | `[B]` `GET /api/vault/sync/status` — return server `NOW()` | 2.8 | |
-| 3.6 | `[B]` Ownership guard applied consistently (`WHERE user_id = current_user.id`) across all 4 routes | 3.1–3.4 | |
+| 3.1 | `[B]` `POST /api/vault/entries` — accept `{ciphertext, iv, tag}` only, reject any plaintext-shaped field | 2.8 | Done |
+| 3.2 | `[B]` `PUT /api/vault/entries/{id}` — ownership check, bump `updated_at` | 3.1 | Done |
+| 3.3 | `[B]` `DELETE /api/vault/entries/{id}` — soft delete: set `deleted_at`, bump `updated_at` | 3.1 | Done |
+| 3.4 | `[B]` `GET /api/vault/entries?since=<ts>` — delta query, **includes** tombstoned rows | 3.1 | Done |
+| 3.5 | `[B]` `GET /api/vault/sync/status` — return server `NOW()` | 2.8 | Done |
+| 3.6 | `[B]` Ownership guard applied consistently (`WHERE user_id = current_user.id`) across all 4 routes | 3.1–3.4 | Done |
 
 **Exit criteria:** Full CRUD + delta sync verified via Postman with two seeded users, confirming no cross-user data leakage.
 
 ### 4.0 Middleware & Security — Day 4
 | ID | Task | Depends On | Status |
 | :-- | :-- | :-- | :-- |
-| 4.1 | `[B]` CORS middleware — allowlist Web deploy origin + localhost only | 1.2 | |
-| 4.2 | `[B]` `slowapi` rate limiter — 5/min on `/login` and `/refresh` | 2.5, 2.6 | |
-| 4.3 | `[B]` Request logging middleware (method/path/status/duration) | 1.2 | |
-| 4.4 | `[B]` Wire logging middleware to async `audit_logs` insert (LOGIN/REFRESH/SYNC/CRUD actions) | 4.3, 3.6 | |
+| 4.1 | `[B]` CORS middleware — allowlist Web deploy origin + localhost only | 1.2 | Done |
+| 4.2 | `[B]` `slowapi` rate limiter — 5/min on `/login` and `/refresh` | 2.5, 2.6 | Done |
+| 4.3 | `[B]` Request logging middleware (method/path/status/duration) | 1.2 | Done |
+| 4.4 | `[B]` Wire logging middleware to async `audit_logs` insert (LOGIN/REFRESH/SYNC/CRUD actions) | 4.3, 3.6 | Done |
 
 **Exit criteria:** Rate limit confirmed to block a 6th rapid login attempt; audit log rows appear correctly for each action type.
 
@@ -145,7 +145,7 @@ Companion to `MVP.md` (scope/schema), `ARCHITECTURE_DESIGN.md` (system design), 
 ### 11.0 Testing — Day 11
 | ID | Task | Depends On | Status |
 | :-- | :-- | :-- | :-- |
-| 11.1 | `[T]` `pytest-asyncio` suite: auth flow, CRUD ownership, rate limit, soft-delete behavior | 2.x, 3.x, 4.x | |
+| 11.1 | `[T]` `pytest-asyncio` suite: auth flow, CRUD ownership, rate limit, soft-delete behavior | 2.x, 3.x, 4.x | Done |
 | 11.2 | `[T]` Flutter widget tests: auth screens, vault list, add/edit form | 5.x, 7.x | |
 | 11.3 | `[T]` Manual test: offline edit → reconnect → sync → verify on second device | 9.x | |
 | 11.4 | `[T]` Manual test: delete propagation across devices (tombstone) | 9.x | |
