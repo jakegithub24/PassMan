@@ -150,7 +150,7 @@ Companion to `MVP.md` (scope/schema), `ARCHITECTURE_DESIGN.md` (system design), 
 | 11.3 | `[T]` Manual test: offline edit → reconnect → sync → verify on second device | 9.x | Done |
 | 11.4 | `[T]` Manual test: delete propagation across devices (tombstone) | 9.x | Done |
 | 11.5 | `[T]` Manual test: access token expiry mid-session → transparent refresh | 5.4 | Done |
-| 11.6 | `[T]` Manual test: refresh token expiry/revocation → forced logout | 5.4, 2.6, 2.7 | |
+| 11.6 | `[T]` Manual test: refresh token expiry/revocation → forced logout | 5.4, 2.6, 2.7 | Done |
 
 **Exit criteria:** All automated tests pass; all 4 manual scenarios confirmed on both Android and Web.
 

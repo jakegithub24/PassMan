@@ -341,6 +341,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = const AuthState.unauthenticated();
   }
 
+  /// Forces immediate local logout without network calls (used when refresh token is invalid or revoked)
+  Future<void> forceLogout() async {
+    await secureStorage.clearAll();
+    state = const AuthState.unauthenticated();
+  }
+
   // ---------------------------------------------------------------------------
   // Clear Error
   // ---------------------------------------------------------------------------
