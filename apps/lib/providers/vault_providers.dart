@@ -38,11 +38,13 @@ final Provider<VaultApiService> vaultApiServiceProvider =
 final StateNotifierProvider<VaultNotifier, VaultState> vaultStateProvider =
     StateNotifierProvider<VaultNotifier, VaultState>((ref) {
   final localVaultStorage = ref.watch(localVaultStorageServiceProvider);
+  final cacheRepository = ref.watch(vaultCacheRepositoryProvider);
   final cryptoService = ref.watch(cryptoServiceProvider);
   final vaultApiService = ref.watch(vaultApiServiceProvider);
 
   return VaultNotifier(
     localVaultStorage: localVaultStorage,
+    cacheRepository: cacheRepository,
     cryptoService: cryptoService,
     vaultApiService: vaultApiService,
     getSessionKey: () => ref.read(sessionKeyProvider),

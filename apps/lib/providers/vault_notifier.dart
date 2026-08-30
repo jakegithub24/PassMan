@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/encrypted_vault_entry.dart';
+import '../models/local_vault_cache_entry.dart';
 import '../models/vault_item.dart';
+import '../repositories/vault_cache_repository.dart';
 import '../services/crypto_service.dart';
 import '../services/local_vault_storage_service.dart';
 import '../services/vault_api_service.dart';
@@ -9,22 +11,31 @@ import '../utils/uuid_util.dart';
 import 'vault_state.dart';
 
 /// StateNotifier responsible for vault operations (listing, adding, editing, deleting, searching, remote CRUD synchronization)
+/// Implements cache-first architecture: reads local cache and renders instantly on app launch (MVP.md §3, §6 / Task 8.5).
 class VaultNotifier extends StateNotifier<VaultState> {
-  final LocalVaultStorageService localVaultStorage;
+  final LocalVaultStorageService? localVaultStorage;
+  final IVaultCacheRepository? cacheRepository;
   final CryptoService cryptoService;
   final VaultApiService? vaultApiService;
   final List<int>? Function() getSessionKey;
   final String? Function() getUserId;
 
   VaultNotifier({
-    required this.localVaultStorage,
+    this.localVaultStorage,
+    this.cacheRepository,
     required this.cryptoService,
     this.vaultApiService,
     required this.getSessionKey,
     required this.getUserId,
-  }) : super(const VaultState());
+  }) : super(const VaultState()) {
+    assert(
+      localVaultStorage != null || cacheRepository != null,
+      'Either localVaultStorage or cacheRepository must be provided.',
+    );
+  }
 
-  /// Loads and decrypts all cached entries from local storage, then syncs with backend if online
+  /// Loads and decrypts all cached entries from local storage first (instant render),
+  /// then triggers background delta synchronization if online
   Future<void> loadVault({bool syncRemote = true}) async {
     final sessionKey = getSessionKey();
     if (sessionKey == null || sessionKey.isEmpty) {
@@ -41,10 +52,10 @@ class VaultNotifier extends StateNotifier<VaultState> {
     );
 
     try {
-      // 1. Load local cached entries first
-      await _loadFromLocalStorage(sessionKey);
+      // 1. Read local cache first -> Instant render with zero network delay
+      await _loadFromLocalCache(sessionKey);
 
-      // 2. Perform delta synchronization with backend if available
+      // 2. Perform delta synchronization with backend in background if available
       if (syncRemote && vaultApiService != null) {
         await _syncWithRemote(sessionKey);
       }
@@ -54,29 +65,47 @@ class VaultNotifier extends StateNotifier<VaultState> {
         clearError: true,
       );
     } catch (e) {
+      // Maintain cached items ready even if network sync errors or offline
       state = state.copyWith(
-        status: VaultStatus.ready, // Keep local items ready even if network sync errors
+        status: VaultStatus.ready,
         errorMessage: 'Network sync error: $e',
       );
     }
   }
 
-  /// Helper to read and decrypt all entries from SQLite/local storage
-  Future<void> _loadFromLocalStorage(List<int> sessionKey) async {
-    final entries = await localVaultStorage.getAllEntries(includeDeleted: false);
+  /// Helper to read and decrypt all entries from SQLite/Hive cache repository
+  Future<void> _loadFromLocalCache(List<int> sessionKey) async {
     final List<VaultItem> decryptedItems = [];
 
-    for (final entry in entries) {
-      try {
-        final decryptedJson = await cryptoService.decryptVaultPayload(
-          jsonPayload: entry.encryptedData,
-          keyBytes: sessionKey,
-        );
-        final decodedMap = jsonDecode(decryptedJson) as Map<String, dynamic>;
-        final item = VaultItem.fromJson(decodedMap);
-        decryptedItems.add(item);
-      } catch (_) {
-        // Ignore corrupted entry
+    if (cacheRepository != null && cacheRepository!.isOpen) {
+      final cacheEntries = await cacheRepository!.getAllEntries(includeDeleted: false);
+      for (final entry in cacheEntries) {
+        try {
+          final decryptedJson = await cryptoService.decryptVaultPayload(
+            jsonPayload: entry.envelopeJson,
+            keyBytes: sessionKey,
+          );
+          final decodedMap = jsonDecode(decryptedJson) as Map<String, dynamic>;
+          final item = VaultItem.fromJson(decodedMap);
+          decryptedItems.add(item);
+        } catch (_) {
+          // Ignore corrupted entry
+        }
+      }
+    } else if (localVaultStorage != null) {
+      final entries = await localVaultStorage!.getAllEntries(includeDeleted: false);
+      for (final entry in entries) {
+        try {
+          final decryptedJson = await cryptoService.decryptVaultPayload(
+            jsonPayload: entry.encryptedData,
+            keyBytes: sessionKey,
+          );
+          final decodedMap = jsonDecode(decryptedJson) as Map<String, dynamic>;
+          final item = VaultItem.fromJson(decodedMap);
+          decryptedItems.add(item);
+        } catch (_) {
+          // Ignore corrupted entry
+        }
       }
     }
 
@@ -95,16 +124,30 @@ class VaultNotifier extends StateNotifier<VaultState> {
 
       for (final remoteEntry in syncResult.entries) {
         if (remoteEntry.isDeleted) {
-          await localVaultStorage.markDeleted(remoteEntry.id);
+          if (cacheRepository != null && cacheRepository!.isOpen) {
+            await cacheRepository!.markDeleted(remoteEntry.id);
+          }
+          if (localVaultStorage != null) {
+            await localVaultStorage!.markDeleted(remoteEntry.id);
+          }
         } else {
-          await localVaultStorage.saveEntry(remoteEntry, isDirty: false);
+          if (cacheRepository != null && cacheRepository!.isOpen) {
+            final cacheEntry = LocalVaultCacheEntry.fromEncryptedVaultEntry(
+              remoteEntry,
+              isPendingSync: false,
+            );
+            await cacheRepository!.saveEntry(cacheEntry);
+          }
+          if (localVaultStorage != null) {
+            await localVaultStorage!.saveEntry(remoteEntry, isDirty: false);
+          }
         }
       }
 
       // Re-read local storage after applying server deltas
-      await _loadFromLocalStorage(sessionKey);
+      await _loadFromLocalCache(sessionKey);
     } catch (_) {
-      // Fail gracefully in offline mode
+      // Fail gracefully in offline mode; local cached items remain visible
     }
   }
 
@@ -154,7 +197,16 @@ class VaultNotifier extends StateNotifier<VaultState> {
       );
 
       // Save locally first
-      await localVaultStorage.saveEntry(localEntry, isDirty: true);
+      if (cacheRepository != null && cacheRepository!.isOpen) {
+        final cacheEntry = LocalVaultCacheEntry.fromEncryptedVaultEntry(
+          localEntry,
+          isPendingSync: true,
+        );
+        await cacheRepository!.saveEntry(cacheEntry);
+      }
+      if (localVaultStorage != null) {
+        await localVaultStorage!.saveEntry(localEntry, isDirty: true);
+      }
 
       // Optimistic in-memory update
       state = state.copyWith(
@@ -167,10 +219,19 @@ class VaultNotifier extends StateNotifier<VaultState> {
       if (vaultApiService != null) {
         try {
           final serverEntry = await vaultApiService!.createEntry(encryptedPayload);
-          // Mark clean in local storage with authoritative server ID / timestamp
-          await localVaultStorage.saveEntry(serverEntry, isDirty: false);
+          // Mark clean in local cache with authoritative server ID / timestamp
+          if (cacheRepository != null && cacheRepository!.isOpen) {
+            final cleanCache = LocalVaultCacheEntry.fromEncryptedVaultEntry(
+              serverEntry,
+              isPendingSync: false,
+            );
+            await cacheRepository!.saveEntry(cleanCache);
+          }
+          if (localVaultStorage != null) {
+            await localVaultStorage!.saveEntry(serverEntry, isDirty: false);
+          }
         } catch (_) {
-          // Kept dirty in local storage for background sync queue
+          // Kept pending in local cache for background sync push
         }
       }
 
@@ -215,7 +276,16 @@ class VaultNotifier extends StateNotifier<VaultState> {
         updatedAt: itemWithNewTimestamp.updatedAt,
       );
 
-      await localVaultStorage.saveEntry(localEntry, isDirty: true);
+      if (cacheRepository != null && cacheRepository!.isOpen) {
+        final cacheEntry = LocalVaultCacheEntry.fromEncryptedVaultEntry(
+          localEntry,
+          isPendingSync: true,
+        );
+        await cacheRepository!.saveEntry(cacheEntry);
+      }
+      if (localVaultStorage != null) {
+        await localVaultStorage!.saveEntry(localEntry, isDirty: true);
+      }
 
       // Update in-memory item
       final updatedList = state.items.map((item) {
@@ -235,9 +305,18 @@ class VaultNotifier extends StateNotifier<VaultState> {
             itemWithNewTimestamp.id,
             encryptedPayload,
           );
-          await localVaultStorage.saveEntry(serverEntry, isDirty: false);
+          if (cacheRepository != null && cacheRepository!.isOpen) {
+            final cleanCache = LocalVaultCacheEntry.fromEncryptedVaultEntry(
+              serverEntry,
+              isPendingSync: false,
+            );
+            await cacheRepository!.saveEntry(cleanCache);
+          }
+          if (localVaultStorage != null) {
+            await localVaultStorage!.saveEntry(serverEntry, isDirty: false);
+          }
         } catch (_) {
-          // Kept dirty in local storage for background sync queue
+          // Kept pending in local cache for background sync push
         }
       }
 
@@ -254,7 +333,12 @@ class VaultNotifier extends StateNotifier<VaultState> {
   /// Soft deletes an entry locally and on backend (DELETE /api/vault/entries/{id})
   Future<bool> deleteEntry(String id) async {
     try {
-      await localVaultStorage.markDeleted(id);
+      if (cacheRepository != null && cacheRepository!.isOpen) {
+        await cacheRepository!.markDeleted(id);
+      }
+      if (localVaultStorage != null) {
+        await localVaultStorage!.markDeleted(id);
+      }
 
       final updatedList = state.items.where((item) => item.id != id).toList();
 
@@ -269,7 +353,7 @@ class VaultNotifier extends StateNotifier<VaultState> {
         try {
           await vaultApiService!.deleteEntry(id);
         } catch (_) {
-          // Kept marked as dirty/tombstone locally
+          // Kept marked as tombstone locally
         }
       }
 

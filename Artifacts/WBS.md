@@ -110,7 +110,7 @@ Companion to `MVP.md` (scope/schema), `ARCHITECTURE_DESIGN.md` (system design), 
 | 8.2 | `[F]` `sqflite` implementation (Android) | 8.1 | Done |
 | 8.3 | `[F]` `Hive` implementation (Web) — same interface as 8.2 | 8.1 | Done |
 | 8.4 | `[F]` Cache repository abstraction so UI/sync code is platform-agnostic | 8.2, 8.3 | Done |
-| 8.5 | `[F]` App launch reads cache first, renders instantly before any network call | 8.4 | |
+| 8.5 | `[F]` App launch reads cache first, renders instantly before any network call | 8.4 | Done |
 
 **Exit criteria:** Killing network access still shows the last-synced vault instantly on both platforms.
 
