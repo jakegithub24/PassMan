@@ -98,7 +98,7 @@ Companion to `MVP.md` (scope/schema), `ARCHITECTURE_DESIGN.md` (system design), 
 | 7.2 | `[F]` Vault list screen | 7.1 | Done |
 | 7.3 | `[F]` Add/edit entry form → encrypts before send | 7.1, 6.2 | Done |
 | 7.4 | `[F]` Delete confirmation flow | 7.1 | Done |
-| 7.5 | `[F]` Search + copy-to-clipboard on entry | 7.2 | |
+| 7.5 | `[F]` Search + copy-to-clipboard on entry | 7.2 | Done |
 | 7.6 | `[F]` Wire list/add/edit/delete to CRUD endpoints (3.1–3.4) | 7.1–7.4 | |
 
 **Exit criteria:** Full CRUD usable end-to-end online, decrypting correctly on read.

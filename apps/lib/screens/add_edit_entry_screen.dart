@@ -301,6 +301,7 @@ class _AddEditEntryScreenState extends ConsumerState<AddEditEntryScreen> {
                               label: 'Username / Email',
                               hint: 'user@example.com',
                               icon: Icons.person_outline_rounded,
+                              showCopyButton: true,
                             ),
                             const SizedBox(height: 16),
 
@@ -444,6 +445,7 @@ class _AddEditEntryScreenState extends ConsumerState<AddEditEntryScreen> {
                               hint: 'https://example.com',
                               icon: Icons.link_rounded,
                               keyboardType: TextInputType.url,
+                              showCopyButton: true,
                             ),
                             const SizedBox(height: 16),
 
@@ -521,6 +523,7 @@ class _AddEditEntryScreenState extends ConsumerState<AddEditEntryScreen> {
     String? Function(String?)? validator,
     TextInputType? keyboardType,
     int maxLines = 1,
+    bool showCopyButton = false,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -549,6 +552,25 @@ class _AddEditEntryScreenState extends ConsumerState<AddEditEntryScreen> {
               hintText: hint,
               hintStyle: const TextStyle(fontSize: 14, color: AppColors.inkLight),
               prefixIcon: Icon(icon, size: 20, color: AppColors.inkSoft),
+              suffixIcon: showCopyButton
+                  ? IconButton(
+                      icon: const Icon(Icons.copy_rounded, size: 18, color: AppColors.navy),
+                      onPressed: () {
+                        if (controller.text.isNotEmpty) {
+                          Clipboard.setData(ClipboardData(text: controller.text));
+                          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('$label copied to clipboard'),
+                              backgroundColor: AppColors.navyDark,
+                              behavior: SnackBarBehavior.floating,
+                              duration: const Duration(seconds: 1),
+                            ),
+                          );
+                        }
+                      },
+                    )
+                  : null,
               border: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
             ),
