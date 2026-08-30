@@ -6,8 +6,15 @@ enum SyncStatus {
   offline,
 }
 
+enum SyncTrigger {
+  appLaunch,
+  appResume,
+  manualRefresh,
+}
+
 class SyncState {
   final SyncStatus status;
+  final SyncTrigger? lastTrigger;
   final DateTime? lastSyncedAt;
   final DateTime? serverTime;
   final int pendingUploadsCount;
@@ -15,6 +22,7 @@ class SyncState {
 
   const SyncState({
     this.status = SyncStatus.idle,
+    this.lastTrigger,
     this.lastSyncedAt,
     this.serverTime,
     this.pendingUploadsCount = 0,
@@ -27,17 +35,20 @@ class SyncState {
 
   SyncState copyWith({
     SyncStatus? status,
+    SyncTrigger? lastTrigger,
     DateTime? lastSyncedAt,
     DateTime? serverTime,
     int? pendingUploadsCount,
     String? errorMessage,
+    bool clearError = false,
   }) {
     return SyncState(
       status: status ?? this.status,
+      lastTrigger: lastTrigger ?? this.lastTrigger,
       lastSyncedAt: lastSyncedAt ?? this.lastSyncedAt,
       serverTime: serverTime ?? this.serverTime,
       pendingUploadsCount: pendingUploadsCount ?? this.pendingUploadsCount,
-      errorMessage: errorMessage ?? this.errorMessage,
+      errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
     );
   }
 }

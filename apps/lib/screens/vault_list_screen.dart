@@ -826,63 +826,74 @@ class _VaultListScreenState extends ConsumerState<VaultListScreen> {
   }
 
   Widget _buildEmptyState(BuildContext context, bool isSearching) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: AppColors.navy.withValues(alpha: 0.08),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                isSearching ? Icons.search_off_rounded : Icons.lock_outline_rounded,
-                size: 64,
-                color: AppColors.navy,
-              ),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              isSearching ? 'No matching passwords found' : 'Your vault is currently empty',
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: AppColors.ink,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              isSearching
-                  ? 'Try searching with another title, username, or website.'
-                  : 'Add your first password or card to keep it encrypted and safe.',
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 14, color: AppColors.inkSoft),
-            ),
-            const SizedBox(height: 24),
-            if (isSearching)
-              OutlinedButton(
-                onPressed: () {
-                  _searchController.clear();
-                  ref.read(vaultStateProvider.notifier).clearSearch();
-                },
-                child: const Text('Clear Search'),
-              )
-            else
-              ElevatedButton.icon(
-                onPressed: widget.onAddNew ?? () => _showAddEntryStub(context),
-                icon: const Icon(Icons.add_rounded),
-                label: const Text('Add Password'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.navy,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    return RefreshIndicator(
+      onRefresh: () async {
+        await ref.read(vaultStateProvider.notifier).loadVault();
+      },
+      color: AppColors.navy,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+        child: Container(
+          alignment: Alignment.center,
+          padding: const EdgeInsets.all(32),
+          constraints: BoxConstraints(
+            minHeight: MediaQuery.of(context).size.height * 0.6,
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: AppColors.navy.withValues(alpha: 0.08),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  isSearching ? Icons.search_off_rounded : Icons.lock_outline_rounded,
+                  size: 64,
+                  color: AppColors.navy,
                 ),
               ),
-          ],
+              const SizedBox(height: 20),
+              Text(
+                isSearching ? 'No matching passwords found' : 'Your vault is currently empty',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.ink,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                isSearching
+                    ? 'Try searching with another title, username, or website.'
+                    : 'Add your first password or card to keep it encrypted and safe.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 14, color: AppColors.inkSoft),
+              ),
+              const SizedBox(height: 24),
+              if (isSearching)
+                OutlinedButton(
+                  onPressed: () {
+                    _searchController.clear();
+                    ref.read(vaultStateProvider.notifier).clearSearch();
+                  },
+                  child: const Text('Clear Search'),
+                )
+              else
+                ElevatedButton.icon(
+                  onPressed: widget.onAddNew ?? () => _showAddEntryStub(context),
+                  icon: const Icon(Icons.add_rounded),
+                  label: const Text('Add Password'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.navy,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );

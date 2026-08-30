@@ -1,7 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../models/sync_state.dart';
 import '../models/vault_item.dart';
 import '../repositories/vault_cache_repository.dart';
 import '../services/local_vault_storage_service.dart';
+import '../services/sync_engine.dart';
 import '../services/vault_api_service.dart';
 import 'auth_providers.dart';
 import 'vault_notifier.dart';
@@ -50,6 +52,13 @@ final StateNotifierProvider<VaultNotifier, VaultState> vaultStateProvider =
     getSessionKey: () => ref.read(sessionKeyProvider),
     getUserId: () => ref.read(currentUserProvider)?.id,
   );
+});
+
+/// Provider for SyncEngine (Task 9.1)
+final StateNotifierProvider<SyncEngine, SyncState> syncEngineProvider =
+    StateNotifierProvider<SyncEngine, SyncState>((ref) {
+  final vaultNotifier = ref.watch(vaultStateProvider.notifier);
+  return SyncEngine(vaultNotifier: vaultNotifier);
 });
 
 // -----------------------------------------------------------------------------

@@ -121,7 +121,7 @@ Companion to `MVP.md` (scope/schema), `ARCHITECTURE_DESIGN.md` (system design), 
 ### 9.0 Sync Engine — Day 9
 | ID | Task | Depends On | Status |
 | :-- | :-- | :-- | :-- |
-| 9.1 | `[F]` Trigger hooks: app launch, resume-from-background, manual pull-to-refresh | 8.5 | |
+| 9.1 | `[F]` Trigger hooks: app launch, resume-from-background, manual pull-to-refresh | 8.5 | Done |
 | 9.2 | `[F]` Delta fetch (`GET /entries?since=`) + `last_synced_at` persistence | 9.1, 3.4 | |
 | 9.3 | `[F]` LWW merge logic: tombstone → remove; server newer → overwrite; local newer → queue push | 9.2 | |
 | 9.4 | `[F]` Push queue: pending `is_pending_sync=1` rows → `POST`/`PUT`/`DELETE`, clear flag on success | 9.3, 3.1–3.3 | |
