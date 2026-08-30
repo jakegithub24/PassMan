@@ -157,7 +157,7 @@ Companion to `MVP.md` (scope/schema), `ARCHITECTURE_DESIGN.md` (system design), 
 ### 12.0 Bug Fixing & Polish — Day 12
 | ID | Task | Depends On | Status |
 | :-- | :-- | :-- | :-- |
-| 12.1 | Triage and fix issues surfaced in Day 11 testing | 11.x | |
+| 12.1 | Triage and fix issues surfaced in Day 11 testing | 11.x | Done |
 | 12.2 | `[F]` UI polish pass (loading states, error messaging, empty states) | 12.1 | |
 | 12.3 | `[B]` Dio/FastAPI error response consistency check | 12.1 | |
 | 12.4 | `[I]` Cross-origin CORS re-verified against actual Web deploy domain | 4.1 | |
