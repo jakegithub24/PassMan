@@ -15,8 +15,20 @@ class ApiConfig {
     '/health',
   };
 
-  /// Resolves the backend base URL dynamically based on client target platform
+  /// Resolves the backend base URL dynamically based on environment defines and client target platform
   static String get defaultBaseUrl {
+    // 1. Check compile-time environment flag passed via --dart-define=API_BASE_URL=https://...
+    const String envUrl = String.fromEnvironment('API_BASE_URL');
+    if (envUrl.isNotEmpty) {
+      return envUrl.endsWith('/') ? envUrl.substring(0, envUrl.length - 1) : envUrl;
+    }
+
+    // 2. Production release mode default
+    if (kReleaseMode) {
+      return 'https://api.passman.app';
+    }
+
+    // 3. Development defaults
     if (kIsWeb) {
       return 'http://localhost:8000';
     }

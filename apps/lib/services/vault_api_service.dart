@@ -1,6 +1,6 @@
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart';
 import '../models/encrypted_vault_entry.dart';
+import '../network/api_config.dart';
 
 /// Result envelope returned by delta sync endpoint
 class VaultSyncResult {
@@ -36,11 +36,11 @@ class VaultApiService {
   VaultApiService({
     Dio? dio,
     String? baseUrl,
-  })  : _baseUrl = baseUrl ?? _getDefaultBaseUrl(),
+  })  : _baseUrl = baseUrl ?? ApiConfig.defaultBaseUrl,
         _dio = dio ??
             Dio(
               BaseOptions(
-                baseUrl: baseUrl ?? _getDefaultBaseUrl(),
+                baseUrl: baseUrl ?? ApiConfig.defaultBaseUrl,
                 connectTimeout: const Duration(seconds: 10),
                 receiveTimeout: const Duration(seconds: 10),
                 headers: {
@@ -49,16 +49,6 @@ class VaultApiService {
                 },
               ),
             );
-
-  static String _getDefaultBaseUrl() {
-    if (kIsWeb) {
-      return 'http://localhost:8000';
-    }
-    if (defaultTargetPlatform == TargetPlatform.android) {
-      return 'http://10.0.2.2:8000';
-    }
-    return 'http://localhost:8000';
-  }
 
   // ---------------------------------------------------------------------------
   // 3.1 Create Vault Entry (POST /api/vault/entries)

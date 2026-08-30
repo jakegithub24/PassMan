@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import '../models/auth_models.dart';
+import '../network/api_config.dart';
 import '../network/api_error_parser.dart';
 
 /// Network service for authentication endpoints matching backend/routers/auth.py
@@ -11,11 +12,11 @@ class AuthService {
   AuthService({
     Dio? dio,
     String? baseUrl,
-  })  : _baseUrl = baseUrl ?? _getDefaultBaseUrl(),
+  })  : _baseUrl = baseUrl ?? ApiConfig.defaultBaseUrl,
         _dio = dio ??
             Dio(
               BaseOptions(
-                baseUrl: baseUrl ?? _getDefaultBaseUrl(),
+                baseUrl: baseUrl ?? ApiConfig.defaultBaseUrl,
                 connectTimeout: const Duration(seconds: 10),
                 receiveTimeout: const Duration(seconds: 10),
                 headers: {
@@ -24,17 +25,6 @@ class AuthService {
                 },
               ),
             );
-
-  static String _getDefaultBaseUrl() {
-    if (kIsWeb) {
-      return 'http://localhost:8000';
-    }
-    // Android emulator alias for host loopback
-    if (defaultTargetPlatform == TargetPlatform.android) {
-      return 'http://10.0.2.2:8000';
-    }
-    return 'http://localhost:8000';
-  }
 
   // ---------------------------------------------------------------------------
   // Register / Signup
