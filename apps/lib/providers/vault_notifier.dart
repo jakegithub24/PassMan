@@ -8,6 +8,7 @@ import '../services/crypto_service.dart';
 import '../services/local_vault_storage_service.dart';
 import '../services/lww_merge_resolver.dart';
 import '../services/secure_storage_service.dart';
+import '../services/sync_push_queue_service.dart';
 import '../services/vault_api_service.dart';
 import '../utils/uuid_util.dart';
 import 'vault_state.dart';
@@ -124,6 +125,15 @@ class VaultNotifier extends StateNotifier<VaultState> {
     if (vaultApiService == null) return;
 
     try {
+      // 1. Process pending local mutations push queue (Task 9.4)
+      final pushQueue = SyncPushQueueService(
+        cacheRepository: cacheRepository,
+        localVaultStorage: localVaultStorage,
+        vaultApiService: vaultApiService!,
+      );
+      await pushQueue.processPendingQueue();
+
+      // 2. Fetch delta entries from server
       final since = await secureStorage?.getLastSyncedAt(userId: getUserId());
       final syncResult = await vaultApiService!.syncEntries(since: since);
 
