@@ -266,6 +266,30 @@ class SecureStorageService {
   }
 
   // ---------------------------------------------------------------------------
+  // Auto-Lock Settings (Task 10.2 / 5–30 min timer)
+  // ---------------------------------------------------------------------------
+
+  static const String keyAutoLockTimeoutPrefix = 'passman_autolock_timeout_min_';
+
+  /// Saves the auto-lock timeout duration in minutes (0 = immediate on background)
+  Future<void> saveAutoLockTimeoutMinutes(int minutes, {String? userId}) async {
+    final key = '$keyAutoLockTimeoutPrefix${userId ?? "default"}';
+    await _secureStorage.write(key: key, value: minutes.toString());
+  }
+
+  /// Retrieves the auto-lock timeout duration in minutes (default is 5 minutes)
+  Future<int> getAutoLockTimeoutMinutes({String? userId}) async {
+    try {
+      final key = '$keyAutoLockTimeoutPrefix${userId ?? "default"}';
+      final val = await _secureStorage.read(key: key);
+      if (val != null && val.isNotEmpty) {
+        return int.tryParse(val) ?? 5;
+      }
+    } catch (_) {}
+    return 5;
+  }
+
+  // ---------------------------------------------------------------------------
   // Generic Helpers & Total Wipeout (Logout)
   // ---------------------------------------------------------------------------
 

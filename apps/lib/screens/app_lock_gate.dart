@@ -14,7 +14,12 @@ class AppLockGate extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authStateProvider);
 
-    return switch (authState.status) {
+    // Watch auto-lock service when authenticated
+    if (authState.isAuthenticated) {
+      ref.watch(autoLockServiceProvider);
+    }
+
+    final child = switch (authState.status) {
       AuthStatus.authenticated => const VaultListScreen(),
       AuthStatus.locked => const BiometricLockScreen(),
       AuthStatus.unauthenticated ||
@@ -23,5 +28,20 @@ class AppLockGate extends ConsumerWidget {
       AuthStatus.initial =>
         const LoginSignupScreen(),
     };
+
+    return Listener(
+      behavior: HitTestBehavior.translucent,
+      onPointerDown: (_) {
+        if (authState.isAuthenticated) {
+          ref.read(autoLockServiceProvider).resetInactivityTimer();
+        }
+      },
+      onPointerMove: (_) {
+        if (authState.isAuthenticated) {
+          ref.read(autoLockServiceProvider).resetInactivityTimer();
+        }
+      },
+      child: child,
+    );
   }
 }

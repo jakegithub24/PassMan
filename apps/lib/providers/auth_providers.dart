@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/auth_models.dart';
 import '../network/dio_client.dart';
 import '../services/auth_service.dart';
+import '../services/auto_lock_service.dart';
 import '../services/biometric_service.dart';
 import '../services/crypto_service.dart';
 import '../services/secure_storage_service.dart';
@@ -24,6 +25,21 @@ final Provider<BiometricService> biometricServiceProvider =
     Provider<BiometricService>((ref) {
   final secureStorage = ref.watch(secureStorageServiceProvider);
   return BiometricService(secureStorage: secureStorage);
+});
+
+/// Provider for AutoLockService (Task 10.2 / 5–30 min auto-lock and background lock)
+final Provider<AutoLockService> autoLockServiceProvider =
+    Provider<AutoLockService>((ref) {
+  final secureStorage = ref.watch(secureStorageServiceProvider);
+  final service = AutoLockService(
+    secureStorage: secureStorage,
+    onLockVault: () {
+      ref.read(authNotifierProvider.notifier).lockVault();
+    },
+    getUserId: () => ref.read(currentUserProvider)?.id,
+  );
+  ref.onDispose(() => service.dispose());
+  return service;
 });
 
 /// Provider for configured Dio HTTP client with JWT-attach and 401 refresh interceptors
