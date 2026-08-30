@@ -134,7 +134,7 @@ Companion to `MVP.md` (scope/schema), `ARCHITECTURE_DESIGN.md` (system design), 
 | :-- | :-- | :-- | :-- |
 | 10.1 | `[F]` `local_auth` biometric/PIN gate on app open | 6.5 | Done |
 | 10.2 | `[F]` User-selectable auto-lock timer (5–30 min) & background lock (`paused`/`inactive`), requiring re-auth on resume | 10.1 | Done |
-| 10.3 | `[F]` Confirm session key never persists outside `flutter_secure_storage` across lock/unlock cycles | 10.1, 6.5 | |
+| 10.3 | `[F]` Confirm session key never persists outside `flutter_secure_storage` across lock/unlock cycles | 10.1, 6.5 | Done |
 
 **Exit criteria:** App locks on background or after user-configured inactivity (5-30m) without biometric/PIN; session key survives unlock without re-derivation from master password (unless secure storage was cleared).
 
