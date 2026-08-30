@@ -91,7 +91,7 @@ class VaultNotifier extends StateNotifier<VaultState> {
             keyBytes: sessionKey,
           );
           final decodedMap = jsonDecode(decryptedJson) as Map<String, dynamic>;
-          final item = VaultItem.fromJson(decodedMap);
+          final item = VaultItem.fromJson(decodedMap).copyWith(id: entry.id);
           decryptedItems.add(item);
         } catch (_) {
           // Ignore corrupted entry
@@ -106,7 +106,7 @@ class VaultNotifier extends StateNotifier<VaultState> {
             keyBytes: sessionKey,
           );
           final decodedMap = jsonDecode(decryptedJson) as Map<String, dynamic>;
-          final item = VaultItem.fromJson(decodedMap);
+          final item = VaultItem.fromJson(decodedMap).copyWith(id: entry.id);
           decryptedItems.add(item);
         } catch (_) {
           // Ignore corrupted entry
@@ -160,7 +160,7 @@ class VaultNotifier extends StateNotifier<VaultState> {
 
           case MergeAction.applyTombstone:
             if (cacheRepository != null && cacheRepository!.isOpen) {
-              await cacheRepository!.markDeleted(remoteEntry.id);
+              await cacheRepository!.saveEntry(mergeResult.resultingEntry!);
             }
             if (localVaultStorage != null) {
               await localVaultStorage!.markDeleted(remoteEntry.id);
