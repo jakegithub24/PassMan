@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'screens/login_signup_screen.dart';
+import 'screens/app_lock_gate.dart';
 import 'theme/app_theme.dart';
 
 void main() {
@@ -42,7 +42,7 @@ class PassManApp extends StatelessWidget {
         ),
         scaffoldBackgroundColor: AppColors.frameBg,
       ),
-      home: const LoginSignupScreen(),
+      home: const AppLockGate(),
     );
   }
 }

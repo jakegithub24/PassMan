@@ -214,6 +214,58 @@ class SecureStorageService {
   }
 
   // ---------------------------------------------------------------------------
+  // Biometric & Device Auth (Task 10.1 / local_auth)
+  // ---------------------------------------------------------------------------
+
+  static const String keyBiometricEnabledPrefix = 'passman_biometric_enabled_';
+  static const String keyBiometricKeyPrefix = 'passman_biometric_session_key_';
+
+  /// Saves whether biometric unlock is enabled
+  Future<void> saveBiometricEnabled(bool enabled, {String? userId}) async {
+    final key = '$keyBiometricEnabledPrefix${userId ?? "default"}';
+    await _secureStorage.write(key: key, value: enabled ? '1' : '0');
+  }
+
+  /// Checks if biometric unlock is enabled
+  Future<bool> isBiometricEnabled({String? userId}) async {
+    try {
+      final key = '$keyBiometricEnabledPrefix${userId ?? "default"}';
+      final val = await _secureStorage.read(key: key);
+      return val == '1';
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Stores session key protected for biometric re-authentication
+  Future<void> saveBiometricSessionKey(List<int> sessionKey, {String? userId}) async {
+    final key = '$keyBiometricKeyPrefix${userId ?? "default"}';
+    await _secureStorage.write(key: key, value: base64Encode(sessionKey));
+  }
+
+  /// Retrieves session key for biometric re-authentication
+  Future<List<int>?> getBiometricSessionKey({String? userId}) async {
+    try {
+      final key = '$keyBiometricKeyPrefix${userId ?? "default"}';
+      final val = await _secureStorage.read(key: key);
+      if (val != null && val.isNotEmpty) {
+        return base64Decode(val);
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('SecureStorage biometric key read error: $e');
+      }
+    }
+    return null;
+  }
+
+  /// Clears biometric session key
+  Future<void> clearBiometricSessionKey({String? userId}) async {
+    final key = '$keyBiometricKeyPrefix${userId ?? "default"}';
+    await _secureStorage.delete(key: key);
+  }
+
+  // ---------------------------------------------------------------------------
   // Generic Helpers & Total Wipeout (Logout)
   // ---------------------------------------------------------------------------
 

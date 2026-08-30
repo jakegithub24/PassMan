@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/auth_models.dart';
 import '../network/dio_client.dart';
 import '../services/auth_service.dart';
+import '../services/biometric_service.dart';
 import '../services/crypto_service.dart';
 import '../services/secure_storage_service.dart';
 import 'auth_notifier.dart';
@@ -16,6 +17,13 @@ import 'auth_state.dart';
 final Provider<SecureStorageService> secureStorageServiceProvider =
     Provider<SecureStorageService>((ref) {
   return SecureStorageService();
+});
+
+/// Provider for BiometricService handling biometric and device PIN authentication (Task 10.1)
+final Provider<BiometricService> biometricServiceProvider =
+    Provider<BiometricService>((ref) {
+  final secureStorage = ref.watch(secureStorageServiceProvider);
+  return BiometricService(secureStorage: secureStorage);
 });
 
 /// Provider for configured Dio HTTP client with JWT-attach and 401 refresh interceptors
@@ -56,11 +64,13 @@ final StateNotifierProvider<AuthNotifier, AuthState> authStateProvider =
   final secureStorage = ref.watch(secureStorageServiceProvider);
   final cryptoService = ref.watch(cryptoServiceProvider);
   final authService = ref.watch(authServiceProvider);
+  final biometricService = ref.watch(biometricServiceProvider);
 
   final notifier = AuthNotifier(
     secureStorage: secureStorage,
     cryptoService: cryptoService,
     authService: authService,
+    biometricService: biometricService,
   );
 
   // Initialize and check persistent auth session on provider creation

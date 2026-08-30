@@ -1,6 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/auth_models.dart';
 import '../services/auth_service.dart';
+import '../services/biometric_service.dart';
 import '../services/crypto_service.dart';
 import '../services/secure_storage_service.dart';
 import 'auth_state.dart';
@@ -10,11 +12,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
   final SecureStorageService secureStorage;
   final CryptoService cryptoService;
   final AuthService authService;
+  final BiometricService? biometricService;
 
   AuthNotifier({
     required this.secureStorage,
     required this.cryptoService,
     required this.authService,
+    this.biometricService,
     AuthState? initialState,
   }) : super(initialState ?? const AuthState.initial());
 
@@ -227,6 +231,56 @@ class AuthNotifier extends StateNotifier<AuthState> {
           : e.toString();
       state = state.copyWith(errorMessage: message);
       return false;
+    }
+  }
+
+  /// Unlocks the vault using device biometrics / PIN (Task 10.1)
+  Future<bool> unlockWithBiometrics() async {
+    final UserModel? user = state.user;
+    if (user == null || state.accessToken == null || state.refreshToken == null) {
+      return false;
+    }
+
+    if (biometricService == null) return false;
+
+    try {
+      final sessionKeyBytes = await biometricService!.unlockWithBiometrics(userId: user.id);
+      if (sessionKeyBytes == null || sessionKeyBytes.isEmpty) {
+        return false;
+      }
+
+      await secureStorage.saveSessionKey(sessionKeyBytes);
+
+      state = AuthState.authenticated(
+        user: user,
+        accessToken: state.accessToken!,
+        refreshToken: state.refreshToken!,
+        sessionKey: sessionKeyBytes,
+      );
+
+      return true;
+    } catch (e) {
+      if (kDebugMode) {
+        print('Biometric unlock failed: $e');
+      }
+      return false;
+    }
+  }
+
+  /// Enables biometric unlock for current session key
+  Future<void> enableBiometricUnlock() async {
+    final user = state.user;
+    final sessionKey = state.sessionKey;
+    if (user != null && sessionKey != null && biometricService != null) {
+      await biometricService!.enableBiometricUnlock(sessionKey, userId: user.id);
+    }
+  }
+
+  /// Disables biometric unlock
+  Future<void> disableBiometricUnlock() async {
+    final user = state.user;
+    if (user != null && biometricService != null) {
+      await biometricService!.disableBiometricUnlock(userId: user.id);
     }
   }
 
