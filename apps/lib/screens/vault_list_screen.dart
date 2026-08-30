@@ -7,6 +7,7 @@ import '../providers/auth_providers.dart';
 import '../providers/vault_providers.dart';
 import '../providers/vault_state.dart';
 import '../theme/app_theme.dart';
+import 'add_edit_entry_screen.dart';
 
 /// Comprehensive, responsive, fluent Vault List screen for Android, Web, and Desktop
 class VaultListScreen extends ConsumerStatefulWidget {
@@ -955,9 +956,10 @@ class _VaultListScreenState extends ConsumerState<VaultListScreen> {
   }
 
   void _showAddEntryStub(BuildContext context) {
-    // Fallback if standalone
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Add Entry Form')),
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => const AddEditEntryScreen(),
+      ),
     );
   }
 
