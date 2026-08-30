@@ -6,6 +6,7 @@ import '../models/vault_item.dart';
 import '../repositories/vault_cache_repository.dart';
 import '../services/crypto_service.dart';
 import '../services/local_vault_storage_service.dart';
+import '../services/lww_merge_resolver.dart';
 import '../services/secure_storage_service.dart';
 import '../services/vault_api_service.dart';
 import '../utils/uuid_util.dart';
@@ -127,24 +128,41 @@ class VaultNotifier extends StateNotifier<VaultState> {
       final syncResult = await vaultApiService!.syncEntries(since: since);
 
       for (final remoteEntry in syncResult.entries) {
-        if (remoteEntry.isDeleted) {
-          if (cacheRepository != null && cacheRepository!.isOpen) {
-            await cacheRepository!.markDeleted(remoteEntry.id);
-          }
-          if (localVaultStorage != null) {
-            await localVaultStorage!.markDeleted(remoteEntry.id);
-          }
-        } else {
-          if (cacheRepository != null && cacheRepository!.isOpen) {
-            final cacheEntry = LocalVaultCacheEntry.fromEncryptedVaultEntry(
-              remoteEntry,
-              isPendingSync: false,
-            );
-            await cacheRepository!.saveEntry(cacheEntry);
-          }
-          if (localVaultStorage != null) {
-            await localVaultStorage!.saveEntry(remoteEntry, isDirty: false);
-          }
+        LocalVaultCacheEntry? localEntry;
+        if (cacheRepository != null && cacheRepository!.isOpen) {
+          localEntry = await cacheRepository!.getEntry(remoteEntry.id);
+        }
+
+        final mergeResult = LwwMergeResolver.resolveFromEncrypted(
+          localEntry: localEntry,
+          remoteEntry: remoteEntry,
+        );
+
+        switch (mergeResult.action) {
+          case MergeAction.applyServer:
+            if (cacheRepository != null && cacheRepository!.isOpen) {
+              await cacheRepository!.saveEntry(mergeResult.resultingEntry!);
+            }
+            if (localVaultStorage != null) {
+              await localVaultStorage!.saveEntry(remoteEntry, isDirty: false);
+            }
+            break;
+
+          case MergeAction.applyTombstone:
+            if (cacheRepository != null && cacheRepository!.isOpen) {
+              await cacheRepository!.markDeleted(remoteEntry.id);
+            }
+            if (localVaultStorage != null) {
+              await localVaultStorage!.markDeleted(remoteEntry.id);
+            }
+            break;
+
+          case MergeAction.keepLocalPending:
+            // Local modification is strictly newer than incoming server record: keep pending push
+            break;
+
+          case MergeAction.noop:
+            break;
         }
       }
 
