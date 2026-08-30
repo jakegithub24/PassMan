@@ -123,6 +123,21 @@ class _AddEditEntryScreenState extends ConsumerState<AddEditEntryScreen> {
           if (Navigator.of(context).canPop()) {
             Navigator.of(context).pop(updated);
           }
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Row(
+                children: [
+                  Icon(Icons.error_outline_rounded, color: Colors.white, size: 20),
+                  SizedBox(width: 10),
+                  Text('Failed to update entry. Please try again.'),
+                ],
+              ),
+              backgroundColor: Colors.red.shade800,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+          );
         }
       }
     } else {
@@ -147,6 +162,21 @@ class _AddEditEntryScreenState extends ConsumerState<AddEditEntryScreen> {
           if (Navigator.of(context).canPop()) {
             Navigator.of(context).pop(newItem);
           }
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Row(
+                children: [
+                  Icon(Icons.error_outline_rounded, color: Colors.white, size: 20),
+                  SizedBox(width: 10),
+                  Text('Failed to add entry. Please try again.'),
+                ],
+              ),
+              backgroundColor: Colors.red.shade800,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+          );
         }
       }
     }

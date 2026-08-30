@@ -633,6 +633,10 @@ class _VaultListScreenState extends ConsumerState<VaultListScreen> {
       return _buildLockedState(context);
     }
 
+    if (vaultState.hasError && items.isEmpty) {
+      return _buildErrorState(context, vaultState.errorMessage ?? 'An error occurred loading the vault');
+    }
+
     if (items.isEmpty) {
       return _buildEmptyState(context, vaultState.searchQuery.isNotEmpty);
     }
@@ -642,39 +646,47 @@ class _VaultListScreenState extends ConsumerState<VaultListScreen> {
         await ref.read(vaultStateProvider.notifier).loadVault();
       },
       color: AppColors.navy,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final isMultiColumn = constraints.maxWidth >= 720;
-          final crossAxisCount = constraints.maxWidth >= 1200 ? 3 : (isMultiColumn ? 2 : 1);
+      child: Column(
+        children: [
+          if (vaultState.hasError && vaultState.errorMessage != null)
+            _buildErrorBanner(context, vaultState.errorMessage!),
+          Expanded(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final isMultiColumn = constraints.maxWidth >= 720;
+                final crossAxisCount = constraints.maxWidth >= 1200 ? 3 : (isMultiColumn ? 2 : 1);
 
-          if (isMultiColumn) {
-            return GridView.builder(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: crossAxisCount,
-                crossAxisSpacing: 16,
-                mainAxisSpacing: 16,
-                mainAxisExtent: 145,
-              ),
-              itemCount: items.length,
-              itemBuilder: (context, index) {
-                return _buildVaultCard(context, items[index]);
+                if (isMultiColumn) {
+                  return GridView.builder(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: crossAxisCount,
+                      crossAxisSpacing: 16,
+                      mainAxisSpacing: 16,
+                      mainAxisExtent: 145,
+                    ),
+                    itemCount: items.length,
+                    itemBuilder: (context, index) {
+                      return _buildVaultCard(context, items[index]);
+                    },
+                  );
+                }
+
+                return ListView.builder(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
+                  physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+                  itemCount: items.length,
+                  itemBuilder: (context, index) {
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: _buildVaultCard(context, items[index]),
+                    );
+                  },
+                );
               },
-            );
-          }
-
-          return ListView.builder(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
-            physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
-            itemCount: items.length,
-            itemBuilder: (context, index) {
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: _buildVaultCard(context, items[index]),
-              );
-            },
-          );
-        },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -916,6 +928,98 @@ class _VaultListScreenState extends ConsumerState<VaultListScreen> {
                 ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorBanner(BuildContext context, String errorMessage) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.red.shade50,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.red.shade200),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.error_outline_rounded, color: Colors.red.shade700, size: 18),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              errorMessage,
+              style: TextStyle(fontSize: 12, color: Colors.red.shade900),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.close_rounded, size: 16),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+            color: Colors.red.shade700,
+            onPressed: () {
+              ref.read(vaultStateProvider.notifier).clearError();
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState(BuildContext context, String errorMessage) {
+    return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+      child: Container(
+        alignment: Alignment.center,
+        padding: const EdgeInsets.all(32),
+        constraints: BoxConstraints(
+          minHeight: MediaQuery.of(context).size.height * 0.6,
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.red.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.error_outline_rounded,
+                size: 56,
+                color: Colors.redAccent,
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Failed to load vault',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppColors.ink,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              errorMessage,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 14, color: AppColors.inkSoft),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: () {
+                ref.read(vaultStateProvider.notifier).loadVault();
+              },
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('Try Again'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.navy,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ],
         ),
       ),
     );
