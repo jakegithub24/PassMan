@@ -37,6 +37,18 @@ class FakeLocalVaultStorageService extends LocalVaultStorageService {
       dirtyStatus[id] = true;
     }
   }
+
+  @override
+  Future<List<EncryptedVaultEntry>> getDirtyEntries() async {
+    return storage.values.where((e) => dirtyStatus[e.id] == true).toList();
+  }
+
+  @override
+  Future<void> clearDirty(List<String> entryIds) async {
+    for (final id in entryIds) {
+      dirtyStatus[id] = false;
+    }
+  }
 }
 
 class FakeVaultApiService extends VaultApiService {

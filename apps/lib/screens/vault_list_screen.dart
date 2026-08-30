@@ -427,13 +427,24 @@ class _VaultListScreenState extends ConsumerState<VaultListScreen> {
             ),
             const SizedBox(width: 16),
 
-            // Quick Refresh Button
+            // Sync Now Button
             IconButton(
-              tooltip: 'Refresh Vault',
-              icon: const Icon(Icons.refresh_rounded, color: AppColors.inkSoft),
-              onPressed: () {
-                ref.read(vaultStateProvider.notifier).loadVault();
-              },
+              tooltip: 'Sync Now',
+              icon: ref.watch(syncEngineProvider).isSyncing
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AppColors.navy,
+                      ),
+                    )
+                  : const Icon(Icons.sync_rounded, color: AppColors.inkSoft),
+              onPressed: ref.watch(syncEngineProvider).isSyncing
+                  ? null
+                  : () {
+                      ref.read(syncEngineProvider.notifier).triggerManualRefresh();
+                    },
             ),
           ],
         ),
@@ -497,13 +508,24 @@ class _VaultListScreenState extends ConsumerState<VaultListScreen> {
               ),
               const SizedBox(width: 4),
               IconButton(
-                tooltip: 'Refresh',
-                icon: const Icon(Icons.sync_rounded, color: AppColors.inkSoft, size: 20),
+                tooltip: 'Sync Now',
+                icon: ref.watch(syncEngineProvider).isSyncing
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppColors.navy,
+                        ),
+                      )
+                    : const Icon(Icons.sync_rounded, color: AppColors.inkSoft, size: 20),
                 constraints: const BoxConstraints(),
                 padding: const EdgeInsets.all(8),
-                onPressed: () {
-                  ref.read(vaultStateProvider.notifier).loadVault();
-                },
+                onPressed: ref.watch(syncEngineProvider).isSyncing
+                    ? null
+                    : () {
+                        ref.read(syncEngineProvider.notifier).triggerManualRefresh();
+                      },
               ),
             ],
           ),

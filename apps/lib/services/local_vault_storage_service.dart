@@ -183,6 +183,9 @@ class LocalVaultStorageService {
   // ---------------------------------------------------------------------------
 
   Future<List<EncryptedVaultEntry>> getDirtyEntries() async {
+    if (_sqliteDb == null && _hiveBox == null) {
+      return [];
+    }
     if (kIsWeb || _hiveBox != null) {
       final List<EncryptedVaultEntry> list = [];
       for (final raw in _hiveBox!.values) {
@@ -204,7 +207,7 @@ class LocalVaultStorageService {
   }
 
   Future<void> clearDirty(List<String> entryIds) async {
-    if (entryIds.isEmpty) return;
+    if (entryIds.isEmpty || (_sqliteDb == null && _hiveBox == null)) return;
 
     if (kIsWeb || _hiveBox != null) {
       for (final id in entryIds) {

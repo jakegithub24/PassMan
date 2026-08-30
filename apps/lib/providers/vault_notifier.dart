@@ -250,10 +250,29 @@ class VaultNotifier extends StateNotifier<VaultState> {
         clearError: true,
       );
 
+      VaultItem returnedItem = newItem;
+
       // Sync to backend endpoint (POST /api/vault/entries) if online
       if (vaultApiService != null) {
         try {
           final serverEntry = await vaultApiService!.createEntry(encryptedPayload);
+          final authoritativeItem = newItem.copyWith(
+            id: serverEntry.id,
+            updatedAt: serverEntry.updatedAt,
+          );
+          returnedItem = authoritativeItem;
+
+          if (serverEntry.id != newItem.id) {
+            if (cacheRepository != null && cacheRepository!.isOpen) {
+              await cacheRepository!.deletePermanent(newItem.id);
+            }
+            state = state.copyWith(
+              items: [
+                authoritativeItem,
+                ...state.items.where((i) => i.id != newItem.id),
+              ],
+            );
+          }
           // Mark clean in local cache with authoritative server ID / timestamp
           if (cacheRepository != null && cacheRepository!.isOpen) {
             final cleanCache = LocalVaultCacheEntry.fromEncryptedVaultEntry(
@@ -270,7 +289,7 @@ class VaultNotifier extends StateNotifier<VaultState> {
         }
       }
 
-      return newItem;
+      return returnedItem;
     } catch (e) {
       state = state.copyWith(
         status: VaultStatus.error,
