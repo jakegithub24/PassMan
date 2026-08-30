@@ -6,6 +6,7 @@ import '../models/vault_item.dart';
 import '../repositories/vault_cache_repository.dart';
 import '../services/crypto_service.dart';
 import '../services/local_vault_storage_service.dart';
+import '../services/secure_storage_service.dart';
 import '../services/vault_api_service.dart';
 import '../utils/uuid_util.dart';
 import 'vault_state.dart';
@@ -15,6 +16,7 @@ import 'vault_state.dart';
 class VaultNotifier extends StateNotifier<VaultState> {
   final LocalVaultStorageService? localVaultStorage;
   final IVaultCacheRepository? cacheRepository;
+  final SecureStorageService? secureStorage;
   final CryptoService cryptoService;
   final VaultApiService? vaultApiService;
   final List<int>? Function() getSessionKey;
@@ -23,6 +25,7 @@ class VaultNotifier extends StateNotifier<VaultState> {
   VaultNotifier({
     this.localVaultStorage,
     this.cacheRepository,
+    this.secureStorage,
     required this.cryptoService,
     this.vaultApiService,
     required this.getSessionKey,
@@ -120,7 +123,8 @@ class VaultNotifier extends StateNotifier<VaultState> {
     if (vaultApiService == null) return;
 
     try {
-      final syncResult = await vaultApiService!.syncEntries();
+      final since = await secureStorage?.getLastSyncedAt(userId: getUserId());
+      final syncResult = await vaultApiService!.syncEntries(since: since);
 
       for (final remoteEntry in syncResult.entries) {
         if (remoteEntry.isDeleted) {
@@ -143,6 +147,9 @@ class VaultNotifier extends StateNotifier<VaultState> {
           }
         }
       }
+
+      // Persist authoritative server timestamp for subsequent delta fetches
+      await secureStorage?.saveLastSyncedAt(syncResult.serverTime, userId: getUserId());
 
       // Re-read local storage after applying server deltas
       await _loadFromLocalCache(sessionKey);

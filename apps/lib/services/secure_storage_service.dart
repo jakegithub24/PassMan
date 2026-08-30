@@ -180,6 +180,40 @@ class SecureStorageService {
   }
 
   // ---------------------------------------------------------------------------
+  // Sync Persistence (Task 9.2 / last_synced_at)
+  // ---------------------------------------------------------------------------
+
+  static const String keyLastSyncedAtPrefix = 'passman_last_synced_at_';
+
+  /// Saves the last synced UTC timestamp
+  Future<void> saveLastSyncedAt(DateTime timestamp, {String? userId}) async {
+    final key = '$keyLastSyncedAtPrefix${userId ?? "default"}';
+    await _secureStorage.write(key: key, value: timestamp.toUtc().toIso8601String());
+  }
+
+  /// Retrieves the last synced UTC timestamp
+  Future<DateTime?> getLastSyncedAt({String? userId}) async {
+    try {
+      final key = '$keyLastSyncedAtPrefix${userId ?? "default"}';
+      final val = await _secureStorage.read(key: key);
+      if (val != null && val.isNotEmpty) {
+        return DateTime.parse(val).toUtc();
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('SecureStorage last_synced_at read error: $e');
+      }
+    }
+    return null;
+  }
+
+  /// Clears last synced timestamp
+  Future<void> clearLastSyncedAt({String? userId}) async {
+    final key = '$keyLastSyncedAtPrefix${userId ?? "default"}';
+    await _secureStorage.delete(key: key);
+  }
+
+  // ---------------------------------------------------------------------------
   // Generic Helpers & Total Wipeout (Logout)
   // ---------------------------------------------------------------------------
 
