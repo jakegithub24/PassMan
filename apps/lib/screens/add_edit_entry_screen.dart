@@ -11,11 +11,13 @@ import '../utils/password_generator.dart';
 class AddEditEntryScreen extends ConsumerStatefulWidget {
   final VaultItem? initialItem;
   final ValueChanged<VaultItem>? onSaved;
+  final ValueChanged<VaultItem>? onDeleted;
 
   const AddEditEntryScreen({
     super.key,
     this.initialItem,
     this.onSaved,
+    this.onDeleted,
   });
 
   @override
@@ -481,6 +483,25 @@ class _AddEditEntryScreenState extends ConsumerState<AddEditEntryScreen> {
                                 style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                               ),
                       ),
+
+                      if (isEditing) ...[
+                        const SizedBox(height: 12),
+                        OutlinedButton.icon(
+                          onPressed: _isSaving ? null : _confirmDeleteCurrentItem,
+                          icon: const Icon(Icons.delete_outline_rounded, color: AppColors.red, size: 18),
+                          label: const Text(
+                            'Delete Entry',
+                            style: TextStyle(color: AppColors.red, fontWeight: FontWeight.w600),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            side: const BorderSide(color: Color(0x33DC2626)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -547,6 +568,55 @@ class _AddEditEntryScreenState extends ConsumerState<AddEditEntryScreen> {
     if (strength < 0.4) return 'Weak password';
     if (strength < 0.7) return 'Medium password';
     return 'Strong password';
+  }
+
+  void _confirmDeleteCurrentItem() {
+    final item = widget.initialItem;
+    if (item == null) return;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.delete_outline_rounded, color: AppColors.red, size: 24),
+            SizedBox(width: 10),
+            Text('Delete Entry?'),
+          ],
+        ),
+        content: Text(
+          'Are you sure you want to delete "${item.title}"? This item will be removed from your encrypted vault.',
+          style: const TextStyle(fontSize: 14, color: AppColors.inkSoft),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel', style: TextStyle(color: AppColors.inkSoft)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.red,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () async {
+              Navigator.of(ctx).pop();
+              await ref.read(vaultStateProvider.notifier).deleteEntry(item.id);
+              if (widget.onDeleted != null) {
+                widget.onDeleted!(item);
+              }
+              if (mounted) {
+                if (Navigator.of(context).canPop()) {
+                  Navigator.of(context).pop();
+                }
+              }
+            },
+            child: const Text('Delete', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
   }
 }
 

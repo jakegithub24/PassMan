@@ -929,26 +929,48 @@ class _VaultListScreenState extends ConsumerState<VaultListScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Delete Entry?'),
-        content: Text('Are you sure you want to delete "${item.title}"?'),
+        title: const Row(
+          children: [
+            Icon(Icons.delete_outline_rounded, color: AppColors.red, size: 24),
+            SizedBox(width: 10),
+            Text('Delete Entry?'),
+          ],
+        ),
+        content: Text(
+          'Are you sure you want to delete "${item.title}"? This item will be removed from your encrypted vault.',
+          style: const TextStyle(fontSize: 14, color: AppColors.inkSoft),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel'),
+            child: const Text('Cancel', style: TextStyle(color: AppColors.inkSoft)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.red,
               foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
-            onPressed: () {
+            onPressed: () async {
               Navigator.of(ctx).pop();
-              ref.read(vaultStateProvider.notifier).deleteEntry(item.id);
+              await ref.read(vaultStateProvider.notifier).deleteEntry(item.id);
               if (widget.onDeleteItem != null) {
                 widget.onDeleteItem!(item);
               }
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Deleted "${item.title}"'),
+                    backgroundColor: AppColors.navyDark,
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
+              }
             },
-            child: const Text('Delete'),
+            child: const Text('Delete', style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
