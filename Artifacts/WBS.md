@@ -146,7 +146,7 @@ Companion to `MVP.md` (scope/schema), `ARCHITECTURE_DESIGN.md` (system design), 
 | ID | Task | Depends On | Status |
 | :-- | :-- | :-- | :-- |
 | 11.1 | `[T]` `pytest-asyncio` suite: auth flow, CRUD ownership, rate limit, soft-delete behavior | 2.x, 3.x, 4.x | Done |
-| 11.2 | `[T]` Flutter widget tests: auth screens, vault list, add/edit form | 5.x, 7.x | |
+| 11.2 | `[T]` Flutter widget tests: auth screens, vault list, add/edit form | 5.x, 7.x | Done |
 | 11.3 | `[T]` Manual test: offline edit → reconnect → sync → verify on second device | 9.x | |
 | 11.4 | `[T]` Manual test: delete propagation across devices (tombstone) | 9.x | |
 | 11.5 | `[T]` Manual test: access token expiry mid-session → transparent refresh | 5.4 | |
