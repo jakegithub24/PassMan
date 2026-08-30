@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/vault_item.dart';
+import '../repositories/vault_cache_repository.dart';
 import '../services/local_vault_storage_service.dart';
 import '../services/vault_api_service.dart';
 import 'auth_providers.dart';
@@ -7,13 +8,19 @@ import 'vault_notifier.dart';
 import 'vault_state.dart';
 
 // -----------------------------------------------------------------------------
-// Service Providers
+// Service & Repository Providers
 // -----------------------------------------------------------------------------
 
 /// Provider for LocalVaultStorageService handling local SQLite/Hive persistence
 final Provider<LocalVaultStorageService> localVaultStorageServiceProvider =
     Provider<LocalVaultStorageService>((ref) {
   return LocalVaultStorageService();
+});
+
+/// Provider for platform-agnostic IVaultCacheRepository (Task 8.4)
+final Provider<IVaultCacheRepository> vaultCacheRepositoryProvider =
+    Provider<IVaultCacheRepository>((ref) {
+  return VaultCacheRepository.create();
 });
 
 /// Provider for VaultApiService handling backend CRUD endpoints
