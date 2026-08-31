@@ -169,7 +169,7 @@ Companion to `MVP.md` (scope/schema), `ARCHITECTURE_DESIGN.md` (system design), 
 | :-- | :-- | :-- | :-- |
 | 13.1 | `[I]` Deploy FastAPI to Render/Fly.io, set production `.env` | 12.x | Done |
 | 13.2 | `[I]` Point production build at Supabase prod instance | 13.1 | Done |
-| 13.3 | `[F]` Build Android release APK | 12.x | |
+| 13.3 | `[F]` Build Android release APK | 12.x | Done |
 | 13.4 | `[F]` Build Flutter Web bundle, deploy (e.g. Netlify) | 12.x | |
 | 13.5 | `[I]` Update CORS allowlist with final production Web URL | 13.4, 4.1 | |
 | 13.6 | Write README (setup, run, deploy instructions) | 13.1–13.4 | |
