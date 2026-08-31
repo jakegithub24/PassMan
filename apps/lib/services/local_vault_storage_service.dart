@@ -45,7 +45,7 @@ class LocalVaultStorageService {
               )
             ''');
             await db.execute('''
-              CREATE INDEX idx_local_vault_updated_at ON $tableName (updated_at DESC)
+              CREATE INDEX IF NOT EXISTS idx_local_vault_updated_at ON $tableName (updated_at DESC)
             ''');
           },
         );
@@ -53,17 +53,32 @@ class LocalVaultStorageService {
     }
   }
 
+  Future<sql.Database> _getDb() async {
+    if (_sqliteDb == null || !_sqliteDb!.isOpen) {
+      await init();
+    }
+    return _sqliteDb!;
+  }
+
+  Future<Box<Map>> _getBox() async {
+    if (_hiveBox == null || !_hiveBox!.isOpen) {
+      await init();
+    }
+    return _hiveBox!;
+  }
+
   // ---------------------------------------------------------------------------
   // Write / Upsert Operations
   // ---------------------------------------------------------------------------
 
   Future<void> saveEntry(EncryptedVaultEntry entry, {bool isDirty = false}) async {
-    if (kIsWeb || _hiveBox != null) {
+    if (kIsWeb) {
+      final box = await _getBox();
       final Map<String, dynamic> data = entry.toJson();
       data['is_dirty'] = isDirty ? 1 : 0;
-      await _hiveBox!.put(entry.id, data);
+      await box.put(entry.id, data);
     } else {
-      final db = _sqliteDb!;
+      final db = await _getDb();
       await db.insert(
         tableName,
         {
@@ -78,16 +93,17 @@ class LocalVaultStorageService {
   Future<void> saveEntries(List<EncryptedVaultEntry> entries, {bool isDirty = false}) async {
     if (entries.isEmpty) return;
 
-    if (kIsWeb || _hiveBox != null) {
+    if (kIsWeb) {
+      final box = await _getBox();
       final Map<String, Map<String, dynamic>> map = {};
       for (final e in entries) {
         final d = e.toJson();
         d['is_dirty'] = isDirty ? 1 : 0;
         map[e.id] = d;
       }
-      await _hiveBox!.putAll(map);
+      await box.putAll(map);
     } else {
-      final db = _sqliteDb!;
+      final db = await _getDb();
       final batch = db.batch();
       for (final e in entries) {
         batch.insert(
@@ -108,12 +124,13 @@ class LocalVaultStorageService {
   // ---------------------------------------------------------------------------
 
   Future<EncryptedVaultEntry?> getEntry(String id) async {
-    if (kIsWeb || _hiveBox != null) {
-      final raw = _hiveBox!.get(id);
+    if (kIsWeb) {
+      final box = await _getBox();
+      final raw = box.get(id);
       if (raw == null) return null;
       return EncryptedVaultEntry.fromJson(Map<String, dynamic>.from(raw));
     } else {
-      final db = _sqliteDb!;
+      final db = await _getDb();
       final List<Map<String, dynamic>> results = await db.query(
         tableName,
         where: 'id = ?',
@@ -126,9 +143,10 @@ class LocalVaultStorageService {
   }
 
   Future<List<EncryptedVaultEntry>> getAllEntries({bool includeDeleted = false}) async {
-    if (kIsWeb || _hiveBox != null) {
+    if (kIsWeb) {
+      final box = await _getBox();
       final List<EncryptedVaultEntry> list = [];
-      for (final raw in _hiveBox!.values) {
+      for (final raw in box.values) {
         final entry = EncryptedVaultEntry.fromJson(Map<String, dynamic>.from(raw));
         if (includeDeleted || !entry.isDeleted) {
           list.add(entry);
@@ -137,7 +155,7 @@ class LocalVaultStorageService {
       list.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
       return list;
     } else {
-      final db = _sqliteDb!;
+      final db = await _getDb();
       final List<Map<String, dynamic>> results = await db.query(
         tableName,
         where: includeDeleted ? null : 'deleted_at IS NULL',
@@ -154,17 +172,18 @@ class LocalVaultStorageService {
   Future<void> markDeleted(String id) async {
     final nowIso = DateTime.now().toUtc().toIso8601String();
 
-    if (kIsWeb || _hiveBox != null) {
-      final raw = _hiveBox!.get(id);
+    if (kIsWeb) {
+      final box = await _getBox();
+      final raw = box.get(id);
       if (raw != null) {
         final map = Map<String, dynamic>.from(raw);
         map['deleted_at'] = nowIso;
         map['updated_at'] = nowIso;
         map['is_dirty'] = 1;
-        await _hiveBox!.put(id, map);
+        await box.put(id, map);
       }
     } else {
-      final db = _sqliteDb!;
+      final db = await _getDb();
       await db.update(
         tableName,
         {
@@ -183,12 +202,10 @@ class LocalVaultStorageService {
   // ---------------------------------------------------------------------------
 
   Future<List<EncryptedVaultEntry>> getDirtyEntries() async {
-    if (_sqliteDb == null && _hiveBox == null) {
-      return [];
-    }
-    if (kIsWeb || _hiveBox != null) {
+    if (kIsWeb) {
+      final box = await _getBox();
       final List<EncryptedVaultEntry> list = [];
-      for (final raw in _hiveBox!.values) {
+      for (final raw in box.values) {
         final map = Map<String, dynamic>.from(raw);
         if (map['is_dirty'] == 1) {
           list.add(EncryptedVaultEntry.fromJson(map));
@@ -196,7 +213,7 @@ class LocalVaultStorageService {
       }
       return list;
     } else {
-      final db = _sqliteDb!;
+      final db = await _getDb();
       final List<Map<String, dynamic>> results = await db.query(
         tableName,
         where: 'is_dirty = 1',
@@ -207,19 +224,20 @@ class LocalVaultStorageService {
   }
 
   Future<void> clearDirty(List<String> entryIds) async {
-    if (entryIds.isEmpty || (_sqliteDb == null && _hiveBox == null)) return;
+    if (entryIds.isEmpty) return;
 
-    if (kIsWeb || _hiveBox != null) {
+    if (kIsWeb) {
+      final box = await _getBox();
       for (final id in entryIds) {
-        final raw = _hiveBox!.get(id);
+        final raw = box.get(id);
         if (raw != null) {
           final map = Map<String, dynamic>.from(raw);
           map['is_dirty'] = 0;
-          await _hiveBox!.put(id, map);
+          await box.put(id, map);
         }
       }
     } else {
-      final db = _sqliteDb!;
+      final db = await _getDb();
       final batch = db.batch();
       for (final id in entryIds) {
         batch.update(
@@ -238,10 +256,12 @@ class LocalVaultStorageService {
   // ---------------------------------------------------------------------------
 
   Future<void> clearAll() async {
-    if (kIsWeb || _hiveBox != null) {
-      await _hiveBox?.clear();
-    } else if (_sqliteDb != null) {
-      await _sqliteDb!.delete(tableName);
+    if (kIsWeb) {
+      final box = await _getBox();
+      await box.clear();
+    } else {
+      final db = await _getDb();
+      await db.delete(tableName);
     }
   }
 }

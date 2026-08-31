@@ -1,12 +1,18 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 import 'screens/app_lock_gate.dart';
 import 'theme/app_theme.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  if (kIsWeb) {
+    await Hive.initFlutter();
+  }
 
   // Edge-to-edge immersive system UI for Android & iOS
   SystemChrome.setSystemUIOverlayStyle(

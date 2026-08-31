@@ -54,13 +54,20 @@ class SqliteVaultCacheService {
     }
   }
 
+  Future<sql.Database> _getDb() async {
+    if (_db == null || !_db!.isOpen) {
+      await init();
+    }
+    return _db!;
+  }
+
   // ---------------------------------------------------------------------------
   // Write / Upsert Operations
   // ---------------------------------------------------------------------------
 
   /// Upserts a single LocalVaultCacheEntry
   Future<void> saveEntry(LocalVaultCacheEntry entry) async {
-    final db = _getDb();
+    final db = await _getDb();
     await db.insert(
       LocalVaultCacheEntry.tableName,
       entry.toMap(),
@@ -71,7 +78,7 @@ class SqliteVaultCacheService {
   /// Batch upserts multiple LocalVaultCacheEntry records in a single transaction
   Future<void> saveEntries(List<LocalVaultCacheEntry> entries) async {
     if (entries.isEmpty) return;
-    final db = _getDb();
+    final db = await _getDb();
     final batch = db.batch();
 
     for (final entry in entries) {
@@ -91,7 +98,7 @@ class SqliteVaultCacheService {
 
   /// Fetches a single entry by ID
   Future<LocalVaultCacheEntry?> getEntry(String id) async {
-    final db = _getDb();
+    final db = await _getDb();
     final List<Map<String, dynamic>> rows = await db.query(
       LocalVaultCacheEntry.tableName,
       where: 'id = ?',
@@ -106,7 +113,7 @@ class SqliteVaultCacheService {
   /// Fetches all cache entries sorted by server_updated_at DESC.
   /// If [includeDeleted] is false, excludes tombstoned items (deleted = 1).
   Future<List<LocalVaultCacheEntry>> getAllEntries({bool includeDeleted = false}) async {
-    final db = _getDb();
+    final db = await _getDb();
     final List<Map<String, dynamic>> rows = await db.query(
       LocalVaultCacheEntry.tableName,
       where: includeDeleted ? null : 'deleted = 0',
@@ -119,7 +126,7 @@ class SqliteVaultCacheService {
   /// Soft deletes an entry (tombstone) by setting deleted = 1, is_pending_sync = 1,
   /// and advancing server_updated_at to current UTC ISO-8601 timestamp.
   Future<void> markDeleted(String id) async {
-    final db = _getDb();
+    final db = await _getDb();
     final nowIso = DateTime.now().toUtc().toIso8601String();
 
     await db.update(
@@ -140,7 +147,7 @@ class SqliteVaultCacheService {
 
   /// Fetches all pending changes awaiting push to server (is_pending_sync = 1)
   Future<List<LocalVaultCacheEntry>> getPendingSyncEntries() async {
-    final db = _getDb();
+    final db = await _getDb();
     final List<Map<String, dynamic>> rows = await db.query(
       LocalVaultCacheEntry.tableName,
       where: 'is_pending_sync = 1',
@@ -152,7 +159,7 @@ class SqliteVaultCacheService {
 
   /// Marks an entry as clean after successful push to server (is_pending_sync = 0)
   Future<void> clearPendingSync(String id, {String? serverUpdatedAt}) async {
-    final db = _getDb();
+    final db = await _getDb();
     final updateData = <String, dynamic>{
       'is_pending_sync': 0,
     };
@@ -170,7 +177,7 @@ class SqliteVaultCacheService {
 
   /// Hard deletes an entry permanently (e.g. after tombstone cleanup)
   Future<void> deletePermanent(String id) async {
-    final db = _getDb();
+    final db = await _getDb();
     await db.delete(
       LocalVaultCacheEntry.tableName,
       where: 'id = ?',
@@ -180,7 +187,7 @@ class SqliteVaultCacheService {
 
   /// Wipes all entries in local_vault_cache on logout or full cache reset
   Future<void> clearAll() async {
-    final db = _getDb();
+    final db = await _getDb();
     await db.delete(LocalVaultCacheEntry.tableName);
   }
 
@@ -190,12 +197,5 @@ class SqliteVaultCacheService {
       await _db!.close();
       _db = null;
     }
-  }
-
-  sql.Database _getDb() {
-    if (_db == null || !_db!.isOpen) {
-      throw StateError('SqliteVaultCacheService is not initialized. Call init() before querying.');
-    }
-    return _db!;
   }
 }

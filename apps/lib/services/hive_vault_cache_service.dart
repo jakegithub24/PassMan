@@ -48,20 +48,27 @@ class HiveVaultCacheService {
     }
   }
 
+  Future<Box<Map>> _getBox() async {
+    if (_box == null || !_box!.isOpen) {
+      await init();
+    }
+    return _box!;
+  }
+
   // ---------------------------------------------------------------------------
   // Write / Upsert Operations
   // ---------------------------------------------------------------------------
 
   /// Upserts a single LocalVaultCacheEntry into Hive
   Future<void> saveEntry(LocalVaultCacheEntry entry) async {
-    final box = _getBox();
+    final box = await _getBox();
     await box.put(entry.id, entry.toMap());
   }
 
   /// Batch upserts multiple LocalVaultCacheEntry records into Hive
   Future<void> saveEntries(List<LocalVaultCacheEntry> entries) async {
     if (entries.isEmpty) return;
-    final box = _getBox();
+    final box = await _getBox();
     final Map<String, Map<String, dynamic>> batchMap = {};
 
     for (final entry in entries) {
@@ -77,7 +84,7 @@ class HiveVaultCacheService {
 
   /// Fetches a single entry by ID from Hive
   Future<LocalVaultCacheEntry?> getEntry(String id) async {
-    final box = _getBox();
+    final box = await _getBox();
     final raw = box.get(id);
     if (raw == null) return null;
 
@@ -87,7 +94,7 @@ class HiveVaultCacheService {
   /// Fetches all cache entries sorted by server_updated_at DESC.
   /// If [includeDeleted] is false, excludes tombstoned items (deleted = 1).
   Future<List<LocalVaultCacheEntry>> getAllEntries({bool includeDeleted = false}) async {
-    final box = _getBox();
+    final box = await _getBox();
     final List<LocalVaultCacheEntry> list = [];
 
     for (final raw in box.values) {
@@ -104,7 +111,7 @@ class HiveVaultCacheService {
   /// Soft deletes an entry (tombstone) by setting deleted = 1, is_pending_sync = 1,
   /// and advancing server_updated_at to current UTC ISO-8601 timestamp.
   Future<void> markDeleted(String id) async {
-    final box = _getBox();
+    final box = await _getBox();
     final raw = box.get(id);
     final nowIso = DateTime.now().toUtc().toIso8601String();
 
@@ -136,7 +143,7 @@ class HiveVaultCacheService {
   /// Fetches all pending changes awaiting push to server (is_pending_sync = 1)
   /// sorted by server_updated_at ASC
   Future<List<LocalVaultCacheEntry>> getPendingSyncEntries() async {
-    final box = _getBox();
+    final box = await _getBox();
     final List<LocalVaultCacheEntry> pendingList = [];
 
     for (final raw in box.values) {
@@ -152,7 +159,7 @@ class HiveVaultCacheService {
 
   /// Marks an entry as clean after successful push to server (is_pending_sync = 0)
   Future<void> clearPendingSync(String id, {String? serverUpdatedAt}) async {
-    final box = _getBox();
+    final box = await _getBox();
     final raw = box.get(id);
     if (raw == null) return;
 
@@ -167,13 +174,13 @@ class HiveVaultCacheService {
 
   /// Hard deletes an entry permanently from Hive
   Future<void> deletePermanent(String id) async {
-    final box = _getBox();
+    final box = await _getBox();
     await box.delete(id);
   }
 
   /// Wipes all entries from Hive box on logout or full cache reset
   Future<void> clearAll() async {
-    final box = _getBox();
+    final box = await _getBox();
     await box.clear();
   }
 
@@ -183,12 +190,5 @@ class HiveVaultCacheService {
       await _box!.close();
       _box = null;
     }
-  }
-
-  Box<Map> _getBox() {
-    if (_box == null || !_box!.isOpen) {
-      throw StateError('HiveVaultCacheService is not initialized. Call init() before querying.');
-    }
-    return _box!;
   }
 }
